@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paarvergleich Priorisierung</title>
+<meta name="description" content="Bis zu 20 Items per paarweisem Vergleich priorisieren – einzeln oder in der Gruppe, mit möglichst wenigen Fragen und PDF-Auswertung.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <h1>Paarvergleich</h1>
+    <p class="sub">Bis zu 20 Items durch paarweise Vergleiche priorisieren – mit möglichst wenigen Fragen.</p>
+    <ol class="steps" id="steps">
+      <li data-step="1">Modus</li>
+      <li data-step="2">Items</li>
+      <li data-step="3">Vergleiche</li>
+      <li data-step="4">Ergebnis</li>
+    </ol>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- Schritt 1: Modus -->
+  <section id="step1" class="card step" hidden>
+    <h2>Wer priorisiert?</h2>
+    <p class="muted">Geht es um die Priorisierung durch eine einzelne Person oder durch eine Gruppe?</p>
+    <div class="choice">
+      <label class="opt"><input type="radio" name="mode" value="single"> <span><strong>Einzelperson</strong><br><small>Pro Vergleich wird ein Item gewählt. Es bekommt einen Punkt.</small></span></label>
+      <label class="opt"><input type="radio" name="mode" value="group"> <span><strong>Gruppe</strong><br><small>Pro Vergleich wird erfasst, wie viele Personen sich für welches Item entscheiden. Jede Stimme ist ein Punkt.</small></span></label>
+    </div>
+    <div id="groupOpts" hidden>
+      <label class="field">Anzahl der Gruppenmitglieder
+        <input type="number" id="groupSize" min="2" max="500" value="5">
+      </label>
+      <p class="muted small">Die Zahl dient dem Vollständigkeitscheck: Bei jedem Vergleich müssen sich die Stimmen für beide Items zur Gesamtzahl addieren.</p>
+      <label class="check"><input type="checkbox" id="fastMode"> <span><strong>Schnellmodus</strong>: Mehrheiten transitiv übertragen. Das spart viele Fragen. Nicht gefragte Stimmenzahlen werden dann geschätzt und im Ergebnis markiert.</span></label>
+    </div>
+    <label class="field">Titel der Priorisierung (optional)
+      <input type="text" id="title" maxlength="120" placeholder="z. B. Prioritäten Q1">
+    </label>
+    <div class="actions">
+      <button class="primary" id="toStep2">Weiter zu den Items</button>
+    </div>
+  </section>
+
+  <!-- Schritt 2: Items -->
+  <section id="step2" class="card step" hidden>
+    <h2>Items erfassen</h2>
+    <p class="muted">Bis zu 20 Items, jeweils mit einem Stichwort. Nur Zeilen mit Stichwort werden berücksichtigt.</p>
+    <details class="paste">
+      <summary>Liste einfügen</summary>
+      <textarea id="pasteArea" rows="6" placeholder="Eine Zeile pro Item. Leere Zeilen werden übersprungen. Optional mit Präfix wie „c) Stichwort“."></textarea>
+      <button id="pasteBtn">Übernehmen</button>
+    </details>
+    <div id="itemRows" class="items"></div>
+    <p class="muted small" id="itemInfo"></p>
+    <div class="actions">
+      <button id="back1">Zurück</button>
+      <button class="primary" id="toStep3">Vergleiche starten</button>
+    </div>
+  </section>
+
+  <!-- Schritt 3: Vergleiche -->
+  <section id="step3" class="card step" hidden>
+    <div class="progress"><div id="progBar"></div></div>
+    <p class="muted small" id="progText"></p>
+    <div id="question"></div>
+    <div class="actions">
+      <button id="undoBtn">Letzte Antwort zurücknehmen</button>
+      <button id="back2">Items bearbeiten</button>
+    </div>
+  </section>
+
+  <!-- Schritt 4: Ergebnis -->
+  <section id="step4" class="step" hidden>
+    <div class="card">
+      <div class="result-head">
+        <h2 id="resTitle">Ergebnis</h2>
+        <div class="btns">
+          <button class="primary" id="pdfBtn">PDF herunterladen</button>
+          <button id="back3">Zu den Vergleichen</button>
+        </div>
+      </div>
+      <div id="checkBox" class="checkbox"></div>
+    </div>
+    <div class="card">
+      <h3>Rangliste</h3>
+      <div class="scroll"><table id="rankTable" class="rank"></table></div>
+    </div>
+    <div class="card">
+      <h3>Prioritätenskala</h3>
+      <p class="muted small">Position = Punktzahl. So sind die Abstände zwischen den Items direkt zu sehen.</p>
+      <div id="scale" class="scroll"></div>
+    </div>
+    <div class="card">
+      <h3>Bewertungsmatrix</h3>
+      <p class="muted small" id="matrixLegend"></p>
+      <div class="scroll"><table id="matrix" class="matrix"></table></div>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <button class="link" id="exportBtn">Sitzung speichern (JSON)</button>
+    <label class="link">Sitzung laden<input type="file" id="importFile" accept="application/json" hidden></label>
+    <button class="link" id="resetBtn">Neu beginnen</button>
+  </footer>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="engine.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
