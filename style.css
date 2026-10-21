@@ -1,4 +1,4 @@
-/* Look an tillnovotny.de angelehnt: Korpus Grotesk, helles Grau, schwarze Pillen-Buttons, Pink als Akzent.
+/* Look an tillnovotny.de angelehnt: Korpus Grotesk, helles Grau, schwarze Pillen-Buttons, Blau als Akzent.
    Die Schrift wird von tillnovotny.de geladen (greift dort bzw. sobald der Server CORS erlaubt), sonst Fallback. */
 @font-face { font-family: 'Korpus Grotesk'; font-weight: 400; font-display: swap;
   src: local('Korpus Grotesk'), url('https://tillnovotny.de/wp-content/uploads/2022/03/KorpusGrotesk-A.woff2') format('woff2'); }
@@ -11,9 +11,9 @@
   --text: #1a1a1a;
   --muted: #69727d;
   --line: #e3e3e3;
-  --accent: #e94874;
-  --accent-ink: #c8315f;
-  --accent-2: #fdedf2;
+  --accent: #5a80ef;
+  --accent-ink: #3a5fd0;
+  --accent-2: #eaf0fe;
   --btn-bg: #000000;
   --btn-fg: #ffffff;
   --inferred: #e3eefc;
@@ -29,9 +29,9 @@
     --text: #f2f2f0;
     --muted: #a0a8b2;
     --line: #333333;
-    --accent: #ee6a8e;
-    --accent-ink: #f48aa9;
-    --accent-2: #3a1f29;
+    --accent: #7f9cf5;
+    --accent-ink: #9db3f8;
+    --accent-2: #1f2a4a;
     --btn-bg: #f2f2f0;
     --btn-fg: #000000;
     --inferred: #1f3150;
@@ -43,7 +43,7 @@
 }
 :root[data-theme="dark"] {
   --bg: #121212; --surface: #1c1c1c; --text: #f2f2f0; --muted: #a0a8b2; --line: #333333;
-  --accent: #ee6a8e; --accent-ink: #f48aa9; --accent-2: #3a1f29; --btn-bg: #f2f2f0; --btn-fg: #000000;
+  --accent: #7f9cf5; --accent-ink: #9db3f8; --accent-2: #1f2a4a; --btn-bg: #f2f2f0; --btn-fg: #000000;
   --inferred: #1f3150; --estimated: #46381b; --ok: #5cc98d; --warn: #e7a54b; --shadow: 0 2px 4px rgba(0, 0, 0, .5);
 }
 

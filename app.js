@@ -349,7 +349,7 @@
     const c = A.counts;
     const title = pdfText(S.title.trim() || 'Priorisierung per Paarvergleich');
     const date = new Date().toLocaleDateString('de-DE');
-    const accent = [233, 72, 116], accentInk = [200, 49, 95];
+    const accent = [90, 128, 239], accentInk = [58, 95, 208];
     let page = 0;
 
     const header = sub => {
@@ -404,7 +404,7 @@
         if (i !== j) doc.text(pdfText((st === 'estimated' ? '~' : '') + (A.graded ? sgn(A.X[i][j]) : A.X[i][j])), cx + cw / 2, y + rh * 0.68, { align: 'center' });
       });
       const sx = x0 + labelW + A.n * cw;
-      doc.setFillColor(253, 237, 242); doc.rect(sx, y, cw, rh, 'FD');
+      doc.setFillColor(234, 240, 254); doc.rect(sx, y, cw, rh, 'FD');
       doc.setFont('helvetica', 'bold'); doc.text(pdfText(fmt(A.points[i])), sx + cw / 2, y + rh * 0.68, { align: 'center' });
       y += rh;
     });
