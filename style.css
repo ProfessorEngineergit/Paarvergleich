@@ -40,6 +40,11 @@ body {
 .wrap { max-width: 980px; margin: 0 auto; padding: 0 16px; }
 .top { background: var(--surface); border-bottom: 1px solid var(--line); padding: 20px 0 12px; margin-bottom: 20px; }
 h1 { margin: 0; font-size: 1.6rem; }
+.brandbar { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+a.brand, a.brand-foot { color: var(--accent); font-weight: 700; letter-spacing: .04em; text-decoration: none; }
+a.brand { font-size: .95rem; }
+a.brand:hover, a.brand-foot:hover { text-decoration: underline; }
+a.brand-foot { padding: 4px 8px; font-size: .875rem; }
 h2 { margin: 0 0 8px; font-size: 1.25rem; }
 h3 { margin: 0 0 8px; font-size: 1.05rem; }
 .sub { margin: 4px 0 12px; color: var(--muted); }
@@ -100,6 +105,17 @@ button.link, label.link { background: none; border: 0; color: var(--accent); pad
 .pick .ltr { font-weight: 700; color: var(--accent); font-size: .95rem; }
 .pick:hover { background: var(--accent-2); }
 .pick kbd { font-size: .75rem; color: var(--muted); }
+.gduel { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+.gcol { display: flex; flex-direction: column; gap: 8px; }
+.gitem { flex: 1; min-height: 84px; border: 1px solid var(--line); border-radius: 10px; padding: 16px 12px; text-align: center; font-size: 1.1rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; word-break: break-word; }
+.gitem .ltr { font-weight: 700; color: var(--accent); font-size: .95rem; }
+.gbtns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.gpick { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 10px 4px; border-width: 2px; border-radius: 8px; font-size: .95rem; }
+.gpick:hover { background: var(--accent-2); }
+.gpick kbd { font-size: .75rem; color: var(--muted); }
+.gpick.s3 { border-color: var(--accent); font-weight: 600; }
+.gpick.s2 { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
+@media (max-width: 520px) { .gduel { grid-template-columns: 1fr; } .gpick { font-size: .85rem; } }
 .vote { display: flex; flex-direction: column; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 10px; padding: 14px 10px; text-align: center; word-break: break-word; }
 .vote .ltr { font-weight: 700; color: var(--accent); }
 .vote input { width: 100px; text-align: center; font-size: 1.2rem; }
