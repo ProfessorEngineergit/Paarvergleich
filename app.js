@@ -5,7 +5,7 @@
   const KEY = 'paarvergleich-v1';
   const $ = id => document.getElementById(id);
 
-  const fresh = () => ({ step: 1, mode: null, groupSize: 5, fast: false, title: '', labels: Array(20).fill(''), answers: [] });
+  const fresh = () => ({ step: 1, mode: null, groupSize: 5, fast: false, graded: true, title: '', labels: Array(20).fill(''), answers: [] });
   let S = load() || fresh();
 
   function load() {
@@ -25,18 +25,23 @@
     s.mode = o.mode === 'single' || o.mode === 'group' ? o.mode : null;
     s.groupSize = Math.max(2, Math.min(500, parseInt(o.groupSize, 10) || 5));
     s.fast = !!o.fast;
+    // Ältere Sitzungen ohne Stufen bleiben unverändert, sofern schon Antworten vorliegen.
+    s.graded = o.graded === undefined ? !(Array.isArray(o.answers) && o.answers.length) : !!o.graded;
     s.title = typeof o.title === 'string' ? o.title.slice(0, 120) : '';
     if (Array.isArray(o.labels)) for (let i = 0; i < 20; i++) s.labels[i] = typeof o.labels[i] === 'string' ? o.labels[i].slice(0, 80) : '';
-    if (Array.isArray(o.answers)) s.answers = o.answers.filter(a => a && LETTERS.includes(a.a) && LETTERS.includes(a.b) && Number.isInteger(a.x));
+    if (Array.isArray(o.answers)) s.answers = o.answers.filter(a => a && LETTERS.includes(a.a) && LETTERS.includes(a.b) && Number.isInteger(a.x))
+      .map(a => ({ a: a.a, b: a.b, x: a.x, ...([1, 2, 3].includes(a.g) ? { g: a.g } : {}) }));
     if (!s.mode && s.step > 1) s.step = 1;
     return s;
   }
 
   const N = () => S.mode === 'group' ? S.groupSize : 1;
   const items = () => S.labels.map((l, i) => ({ letter: LETTERS[i], label: l.trim() })).filter(o => o.label);
-  const analysis = () => PV.analyze(items(), S.answers, N(), S.mode === 'group' && S.fast);
+  const isGraded = () => S.mode === 'single' && S.graded;
+  const analysis = () => PV.analyze(items(), S.answers, N(), S.mode === 'group' && S.fast, isGraded());
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const modeText = () => S.mode === 'group' ? `Gruppe mit ${S.groupSize} Personen${S.fast ? ' (Schnellmodus)' : ''}` : 'Einzelperson';
+  const modeText = () => S.mode === 'group' ? `Gruppe mit ${S.groupSize} Personen${S.fast ? ' (Schnellmodus)' : ''}` : `Einzelperson${S.graded ? ' (abgestuft)' : ''}`;
+  const GRADES = { 3: 'viel höher', 2: 'höher', 1: 'etwas höher' };
 
   function go(step) { S.step = step; save(); render(); window.scrollTo(0, 0); }
 
@@ -57,16 +62,18 @@
   function renderStep1() {
     document.querySelectorAll('input[name=mode]').forEach(r => { r.checked = r.value === S.mode; });
     $('groupOpts').hidden = S.mode !== 'group';
+    $('singleOpts').hidden = S.mode !== 'single';
+    $('graded').checked = S.graded;
     $('groupSize').value = S.groupSize;
     $('fastMode').checked = S.fast;
     $('title').value = S.title;
     $('toStep2').disabled = !S.mode;
   }
   function settingsChange(apply) {
-    const before = JSON.stringify([S.mode, S.groupSize, S.fast]);
-    const prev = { mode: S.mode, groupSize: S.groupSize, fast: S.fast };
+    const before = JSON.stringify([S.mode, S.groupSize, S.fast, S.graded]);
+    const prev = { mode: S.mode, groupSize: S.groupSize, fast: S.fast, graded: S.graded };
     apply();
-    const changed = before !== JSON.stringify([S.mode, S.groupSize, S.fast]);
+    const changed = before !== JSON.stringify([S.mode, S.groupSize, S.fast, S.graded]);
     if (changed && S.answers.length) {
       if (!confirm('Die bisherigen Antworten passen nicht mehr zu dieser Einstellung und werden verworfen. Fortfahren?')) {
         Object.assign(S, prev); renderStep1(); return;
@@ -78,6 +85,7 @@
   document.querySelectorAll('input[name=mode]').forEach(r => r.addEventListener('change', () => settingsChange(() => { S.mode = r.value; })));
   $('groupSize').addEventListener('change', e => settingsChange(() => { S.groupSize = Math.max(2, Math.min(500, parseInt(e.target.value, 10) || 2)); }));
   $('fastMode').addEventListener('change', e => settingsChange(() => { S.fast = e.target.checked; }));
+  $('graded').addEventListener('change', e => settingsChange(() => { S.graded = e.target.checked; }));
   $('title').addEventListener('input', e => { S.title = e.target.value; save(); });
   $('toStep2').addEventListener('click', () => { if (S.mode) go(2); });
 
@@ -141,7 +149,18 @@
     $('undoBtn').disabled = !S.answers.length;
     const q = A.next, a = A.items[q.i], b = A.items[q.j];
     const box = $('question');
-    if (S.mode === 'single') {
+    if (isGraded()) {
+      const side = (it, order) => `<div class="gcol"><div class="gitem"><span class="ltr">${it.letter}</span>${esc(it.label)}</div><div class="gbtns">` +
+        order.map((g, k) => `<button class="gpick s${g}" data-it="${it.letter}" data-g="${g}"><span>${GRADES[g]}</span><kbd>${(it === a ? 0 : 3) + k + 1}</kbd></button>`).join('') + '</div></div>';
+      box.innerHTML = `
+        <p class="q-title">Welches Item hat die höhere Priorität – und wie viel höher?</p>
+        <div class="gduel">${side(a, [3, 2, 1])}${side(b, [1, 2, 3])}</div>
+        <p class="hint">Ein Klick genügt (Tasten 1–6). Die Reihenfolge wird weiterhin errechnet; die Stufen bestimmen die Abstände auf der Skala.</p>`;
+      box.querySelectorAll('.gpick').forEach(btn => btn.addEventListener('click', () => {
+        const g = +btn.dataset.g;
+        answer(a, b, btn.dataset.it === a.letter ? 1 : 0, g);
+      }));
+    } else if (S.mode === 'single') {
       box.innerHTML = `
         <p class="q-title">Welches Item hat die höhere Priorität?</p>
         <div class="duel">
@@ -187,16 +206,19 @@
       va.focus();
     }
   }
-  function answer(a, b, x) {
-    S.answers.push({ a: a.letter, b: b.letter, x });
+  function answer(a, b, x, g) {
+    S.answers.push(g ? { a: a.letter, b: b.letter, x, g } : { a: a.letter, b: b.letter, x });
     save(); render();
   }
   document.addEventListener('keydown', e => {
     if (S.step !== 3 || S.mode !== 'single' || e.target.tagName === 'INPUT') return;
+    const gb = document.querySelectorAll('#question .gpick');
     const btns = document.querySelectorAll('#question .pick');
-    if (btns.length !== 2) return;
-    if (e.key === '1' || e.key === 'ArrowLeft') btns[0].click();
-    if (e.key === '2' || e.key === 'ArrowRight') btns[1].click();
+    if (gb.length === 6 && /^[1-6]$/.test(e.key)) gb[+e.key - 1].click();
+    else if (btns.length === 2) {
+      if (e.key === '1' || e.key === 'ArrowLeft') btns[0].click();
+      if (e.key === '2' || e.key === 'ArrowRight') btns[1].click();
+    }
     if ((e.key === 'Backspace' || (e.key === 'z' && (e.ctrlKey || e.metaKey))) && S.answers.length) { e.preventDefault(); undo(); }
   });
   function undo() { if (S.answers.length) { S.answers.pop(); save(); if (S.step !== 3) go(3); else render(); } }
@@ -208,11 +230,12 @@
     const A = analysis();
     if (!A.complete) { go(3); return; }
     const rows = PV.ranking(A);
-    const maxPts = (A.n - 1) * A.N;
+    const maxPts = A.maxPts, axisMax = Math.max(1, Math.ceil(maxPts));
+    const ptsName = A.graded ? 'Skalenwert' : 'Punkte';
     $('resTitle').textContent = S.title.trim() || 'Ergebnis';
 
     const c = A.counts;
-    const sumOk = A.points.reduce((s, p) => s + p, 0) === c.pairs * A.N;
+    const sumOk = A.graded || A.points.reduce((s, p) => s + p, 0) === c.pairs * A.N;
     const complete = c.open === 0 && sumOk;
     const kpi = (v, t) => `<div class="kpi"><b>${v}</b>${t}</div>`;
     $('checkBox').innerHTML =
@@ -220,31 +243,38 @@
       kpi(c.asked, 'gefragt') + kpi(c.inferred, 'errechnet') +
       (c.estimated ? kpi(c.estimated, 'geschätzt') : '') +
       `<div class="status ${complete ? 'ok' : 'warn'}">${complete
-        ? `Vollständigkeitscheck bestanden: Alle ${c.pairs} Paare bewertet, je Paar ${A.N} ${A.N === 1 ? 'Punkt' : 'Stimmen'}, Gesamtsumme ${c.pairs * A.N} Punkte.`
+        ? (A.graded
+          ? `Vollständigkeitscheck bestanden: Alle ${c.pairs} Paare bewertet, Reihenfolge widerspruchsfrei. Die Skala weicht im Mittel um ${fmt(Math.round(A.fitDev * 10) / 10)} Stufen von Deinen Angaben ab.`
+          : `Vollständigkeitscheck bestanden: Alle ${c.pairs} Paare bewertet, je Paar ${A.N} ${A.N === 1 ? 'Punkt' : 'Stimmen'}, Gesamtsumme ${c.pairs * A.N} Punkte.`)
         : `Vollständigkeitscheck nicht bestanden: ${c.open} Paare offen.`}
         ${c.asked < c.pairs ? ` Ersparnis: ${c.pairs - c.asked} von ${c.pairs} Fragen (${Math.round(100 * (c.pairs - c.asked) / c.pairs)} %).` : ''}</div>`;
 
-    $('rankTable').innerHTML = `<thead><tr><th>Rang</th><th>Item</th><th>Stichwort</th><th class="num">Punkte</th><th class="num">Anteil</th><th class="num">Abstand</th><th></th></tr></thead><tbody>` +
+    $('rankTable').innerHTML = `<thead><tr><th>Rang</th><th>Item</th><th>Stichwort</th><th class="num">${ptsName}</th><th class="num">Anteil</th><th class="num">Abstand</th><th></th></tr></thead><tbody>` +
       rows.map(r => `<tr><td>${r.rank}.</td><td><b>${r.letter}</b></td><td class="kw">${esc(r.label)}</td><td class="num">${fmt(r.points)}</td><td class="num">${pct(r.points, maxPts)}</td><td class="num">${r.gap === null ? '–' : fmt(r.gap)}</td><td class="barcell"><div class="bar" style="width:${maxPts ? 100 * r.points / maxPts : 0}%"></div></td></tr>`).join('') + '</tbody>';
 
-    $('matrixLegend').innerHTML = `Zelle = ${A.N === 1 ? 'Punkt' : 'Stimmen'} des Zeilen-Items im Vergleich mit dem Spalten-Item; Zeilensumme = Priorität.` +
+    $('matrixLegend').innerHTML = (A.graded
+      ? 'Zelle = Abstand des Zeilen-Items zum Spalten-Item in Stufen (1 = etwas höher, 2 = höher, 3 = viel höher; Minus = niedriger). Gefragte Paare zeigen die gegebene Stufe, errechnete Paare die Differenz der Skalenwerte. Skalenwert: niedrigstes Item = 0.'
+      : `Zelle = ${A.N === 1 ? 'Punkt' : 'Stimmen'} des Zeilen-Items im Vergleich mit dem Spalten-Item; Zeilensumme = Priorität.`) +
       `<span class="swatch"></span>gefragt<span class="swatch" style="background:var(--inferred)"></span>errechnet` +
       (c.estimated ? `<span class="swatch" style="background:var(--estimated)"></span>geschätzt (~)` : '');
-    let h = '<thead><tr><th></th>' + A.items.map(o => `<th>${o.letter}</th>`).join('') + '<th>Summe</th></tr></thead><tbody>';
+    let h = '<thead><tr><th></th>' + A.items.map(o => `<th>${o.letter}</th>`).join('') + `<th>${A.graded ? 'Skalenwert' : 'Summe'}</th></tr></thead><tbody>`;
     A.items.forEach((o, i) => {
       h += `<tr><th class="rowh" title="${esc(o.label)}">${o.letter} · ${esc(o.label)}</th>`;
       A.items.forEach((_, j) => {
         if (i === j) { h += '<td class="diag"></td>'; return; }
         const st = A.status[i][j];
-        h += `<td class="${st}">${st === 'estimated' ? '~' : ''}${A.X[i][j]}</td>`;
+        h += `<td class="${st}">${st === 'estimated' ? '~' : ''}${A.graded ? sgn(A.X[i][j]) : A.X[i][j]}</td>`;
       });
-      h += `<td class="sum">${A.points[i]}</td></tr>`;
+      h += `<td class="sum">${fmt(A.points[i])}</td></tr>`;
     });
     $('matrix').innerHTML = h + '</tbody>';
 
-    $('scale').innerHTML = scaleSvg(rows, maxPts);
+    $('scaleNote').textContent = `Position = ${ptsName === 'Punkte' ? 'Punktzahl' : 'Skalenwert'}. So sind die Abstände zwischen den Items direkt zu sehen.`;
+    $('scale').innerHTML = scaleSvg(rows, axisMax);
   }
-  const fmt = v => String(v);
+  // Ganze Zahlen unverändert, sonst eine Nachkommastelle mit Komma.
+  const fmt = v => String(Math.round(v * 10) / 10).replace('.', ',');
+  const sgn = v => (v > 0 ? '+' : v < 0 ? '−' : '') + fmt(Math.abs(v));
   const pct = (v, max) => max ? Math.round(100 * v / max) + ' %' : '–';
 
   // Beschriftungen auf Ebenen verteilen, damit sie sich nicht überlappen.
@@ -262,7 +292,7 @@
     return { list, levels: ends.length };
   }
   const shorten = (s, n) => s.length > n ? s.slice(0, n - 1) + '…' : s;
-  const scaleLabel = r => `${r.letter} · ${shorten(r.label, 26)} (${r.points})`;
+  const scaleLabel = r => `${r.letter} · ${shorten(r.label, 26)} (${fmt(r.points)})`;
   function ticks(maxPts) {
     const step = [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 5000].find(s => maxPts / s <= 12) || 10000;
     const t = [];
@@ -291,7 +321,7 @@
     const uniq = [...new Set(rows.map(r => r.points))].sort((a, b) => a - b);
     for (let k = 1; k < uniq.length; k++) {
       const xa = x0 + uniq[k - 1] / maxPts * width, xb = x0 + uniq[k] / maxPts * width;
-      if (xb - xa >= 18) s += `<text class="gap" x="${(xa + xb) / 2}" y="${axisY + 36}" text-anchor="middle">+${uniq[k] - uniq[k - 1]}</text>`;
+      if (xb - xa >= 18) s += `<text class="gap" x="${(xa + xb) / 2}" y="${axisY + 36}" text-anchor="middle">+${fmt(uniq[k] - uniq[k - 1])}</text>`;
     }
     for (const it of list) s += `<circle class="dot" cx="${it.x}" cy="${axisY}" r="5"/>`;
     return s + '</svg>';
@@ -307,18 +337,19 @@
     makePdf(analysis());
   });
 
-  function pdfText(s) { return String(s).replace(/…/g, '...').replace(/[–—]/g, '-').replace(/[^\x20-\x7E\xA0-\xFF€]/g, '?'); }
+  function pdfText(s) { return String(s).replace(/…/g, '...').replace(/[−–—]/g, '-').replace(/[^\x20-\x7E\xA0-\xFF€]/g, '?'); }
 
   function makePdf(A) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     const PW = 297, PH = 210, M = 12;
     const rows = PV.ranking(A);
-    const maxPts = (A.n - 1) * A.N;
+    const maxPts = A.maxPts, axisMax = Math.max(1, Math.ceil(maxPts));
+    const ptsName = A.graded ? 'Skalenwert' : 'Punkte';
     const c = A.counts;
     const title = pdfText(S.title.trim() || 'Priorisierung per Paarvergleich');
     const date = new Date().toLocaleDateString('de-DE');
-    const accent = [31, 111, 139];
+    const accent = [233, 72, 116], accentInk = [200, 49, 95];
     let page = 0;
 
     const header = sub => {
@@ -328,7 +359,15 @@
       doc.text(title, M, 13);
       doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(93, 104, 119);
       doc.text(pdfText(`${sub}  ·  ${modeText()}  ·  ${A.n} Items  ·  ${date}`), M, 19);
-      doc.text(`Seite ${page}`, PW - M, PH - 6, { align: 'right' });
+      const pg = `Seite ${page}`;
+    doc.text(pg, PW - M, PH - 6, { align: 'right' });
+    const link = 'tillnovotny.de';
+    const xr = PW - M - doc.getTextWidth(pg) - 6;
+    doc.setTextColor(...accentInk);
+    doc.textWithLink(link, xr - doc.getTextWidth(link), PH - 6, { url: 'https://tillnovotny.de' });
+    doc.setFont('helvetica', 'bold'); doc.setTextColor(28, 36, 48);
+    doc.text('TILL NOVOTNY', xr - doc.getTextWidth(link) - 3, PH - 6, { align: 'right' });
+    doc.setFont('helvetica', 'normal'); doc.setTextColor(93, 104, 119);
       doc.text(pdfText(`Paare: ${c.pairs} · gefragt: ${c.asked} · errechnet: ${c.inferred}${c.estimated ? ' · geschätzt: ' + c.estimated : ''} · Vollständigkeitscheck: ${c.open === 0 ? 'bestanden' : c.open + ' offen'}`), M, PH - 6);
       doc.setTextColor(28, 36, 48);
     };
@@ -344,7 +383,7 @@
     doc.setFontSize(Math.min(9, rh * 1.5));
     doc.setFont('helvetica', 'bold');
     A.items.forEach((o, j) => doc.text(o.letter, x0 + labelW + j * cw + cw / 2, y + rh * 0.68, { align: 'center' }));
-    doc.text('Summe', x0 + labelW + A.n * cw + cw / 2, y + rh * 0.68, { align: 'center' });
+    doc.text(A.graded ? 'Wert' : 'Summe', x0 + labelW + A.n * cw + cw / 2, y + rh * 0.68, { align: 'center' });
     y += rh;
     A.items.forEach((o, i) => {
       doc.setFont('helvetica', 'bold');
@@ -362,18 +401,20 @@
         else doc.setFillColor(255, 255, 255);
         doc.setDrawColor(200, 206, 214);
         doc.rect(cx, y, cw, rh, 'FD');
-        if (i !== j) doc.text((st === 'estimated' ? '~' : '') + A.X[i][j], cx + cw / 2, y + rh * 0.68, { align: 'center' });
+        if (i !== j) doc.text(pdfText((st === 'estimated' ? '~' : '') + (A.graded ? sgn(A.X[i][j]) : A.X[i][j])), cx + cw / 2, y + rh * 0.68, { align: 'center' });
       });
       const sx = x0 + labelW + A.n * cw;
-      doc.setFillColor(230, 241, 245); doc.rect(sx, y, cw, rh, 'FD');
-      doc.setFont('helvetica', 'bold'); doc.text(String(A.points[i]), sx + cw / 2, y + rh * 0.68, { align: 'center' });
+      doc.setFillColor(253, 237, 242); doc.rect(sx, y, cw, rh, 'FD');
+      doc.setFont('helvetica', 'bold'); doc.text(pdfText(fmt(A.points[i])), sx + cw / 2, y + rh * 0.68, { align: 'center' });
       y += rh;
     });
     doc.setDrawColor(200, 206, 214);
     doc.line(x0, 26 + rh, x0 + labelW, 26 + rh);
     y += 6;
     doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(93, 104, 119);
-    doc.text(pdfText(`Lesart: Zelle = ${A.N === 1 ? 'Punkt' : 'Stimmen'} des Zeilen-Items im Vergleich mit dem Spalten-Item. Zeilensumme = Priorität (max. ${maxPts}).`), M, y);
+    doc.text(pdfText(A.graded
+      ? 'Lesart: Zelle = Abstand des Zeilen-Items zum Spalten-Item in Stufen (1 = etwas höher, 2 = höher, 3 = viel höher; Minus = niedriger). Gefragt: gegebene Stufe, errechnet: Differenz der Skalenwerte.'
+      : `Lesart: Zelle = ${A.N === 1 ? 'Punkt' : 'Stimmen'} des Zeilen-Items im Vergleich mit dem Spalten-Item. Zeilensumme = Priorität (max. ${maxPts}).`), M, y, { maxWidth: PW - 2 * M });
     y += 5;
     const legend = [[[255, 255, 255], 'gefragt'], [[227, 238, 252], 'errechnet (logisch abgeleitet)']];
     if (c.estimated) legend.push([[253, 241, 216], '~ geschätzt (Schnellmodus)']);
@@ -391,8 +432,8 @@
     y = 28;
     doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(93, 104, 119);
     doc.text('Rang', colX.rank, y); doc.text('Item', colX.ltr, y); doc.text('Stichwort', colX.kw, y);
-    doc.text('Punkte', colX.pts + 14, y, { align: 'right' }); doc.text('Anteil', colX.pct + 14, y, { align: 'right' });
-    doc.text('Abstand', colX.gap + 12, y, { align: 'right' }); doc.text(pdfText(`Punkte (0 – ${maxPts})`), colX.bar, y);
+    doc.text(ptsName, colX.pts + 14, y, { align: 'right' }); doc.text('Anteil', colX.pct + 14, y, { align: 'right' });
+    doc.text('Abstand', colX.gap + 12, y, { align: 'right' }); doc.text(pdfText(`${ptsName} (0 – ${fmt(maxPts)})`), colX.bar, y);
     doc.setDrawColor(200, 206, 214); doc.line(M, y + 2, PW - M, y + 2);
     y += 2;
     doc.setTextColor(28, 36, 48);
@@ -406,22 +447,22 @@
       let lab = pdfText(r.label);
       while (doc.getTextWidth(lab) > colX.pts - colX.kw - 6 && lab.length > 3) lab = lab.slice(0, -4) + '...';
       doc.text(lab, colX.kw, ty);
-      doc.text(String(r.points), colX.pts + 14, ty, { align: 'right' });
+      doc.text(pdfText(fmt(r.points)), colX.pts + 14, ty, { align: 'right' });
       doc.text(pdfText(pct(r.points, maxPts)), colX.pct + 14, ty, { align: 'right' });
-      doc.text(r.gap === null ? '-' : String(r.gap), colX.gap + 12, ty, { align: 'right' });
+      doc.text(r.gap === null ? '-' : pdfText(fmt(r.gap)), colX.gap + 12, ty, { align: 'right' });
       doc.setFillColor(...accent);
       const bw = maxPts ? barW * r.points / maxPts : 0;
       if (bw > 0) doc.rect(colX.bar, y + rh2 * 0.2, bw, rh2 * 0.6, 'F');
       y += rh2;
     });
     doc.setFontSize(8.5); doc.setTextColor(93, 104, 119);
-    doc.text(pdfText('Abstand = Punktdifferenz zum nächsthöheren Rang. Gleiche Punktzahl = gleicher Rang.'), M, y + 6);
+    doc.text(pdfText(A.graded ? 'Abstand = Differenz der Skalenwerte zum nächsthöheren Rang (in Stufen: 1 = etwas höher, 2 = höher, 3 = viel höher).' : 'Abstand = Punktdifferenz zum nächsthöheren Rang. Gleiche Punktzahl = gleicher Rang.'), M, y + 6);
 
     // Seite 3: Prioritätenskala
     header('Grafische Darstellung: Prioritätenskala');
     doc.setFontSize(9); doc.setFont('helvetica', 'normal');
     const sx0 = M + 8, sw = PW - 2 * M - 16;
-    const { list, levels } = layoutLabels(rows, maxPts, sx0, sw, s => doc.getTextWidth(pdfText(s)), 3);
+    const { list, levels } = layoutLabels(rows, axisMax, sx0, sw, s => doc.getTextWidth(pdfText(s)), 3);
     const lh = Math.min(8, (PH - 75) / Math.max(1, levels));
     const axisY = 34 + levels * lh + 6;
     doc.setDrawColor(190, 197, 206); doc.setTextColor(28, 36, 48);
@@ -436,24 +477,24 @@
     doc.setDrawColor(93, 104, 119); doc.setLineWidth(0.5);
     doc.line(sx0, axisY, sx0 + sw, axisY);
     doc.setLineWidth(0.3); doc.setFontSize(8); doc.setTextColor(93, 104, 119);
-    ticks(maxPts).forEach(t => {
-      const x = sx0 + (maxPts ? t / maxPts : 0) * sw;
+    ticks(axisMax).forEach(t => {
+      const x = sx0 + t / axisMax * sw;
       doc.line(x, axisY, x, axisY + 1.8);
       doc.text(String(t), x, axisY + 5.5, { align: 'center' });
     });
     const uniq = [...new Set(rows.map(r => r.points))].sort((a, b) => a - b);
     doc.setFontSize(7.5);
     for (let k = 1; k < uniq.length; k++) {
-      const xa = sx0 + uniq[k - 1] / maxPts * sw, xb = sx0 + uniq[k] / maxPts * sw;
+      const xa = sx0 + uniq[k - 1] / axisMax * sw, xb = sx0 + uniq[k] / axisMax * sw;
       if (xb - xa >= 6) {
         doc.setDrawColor(190, 197, 206); doc.line(xa + 0.8, axisY + 9, xb - 0.8, axisY + 9);
-        doc.text('+' + (uniq[k] - uniq[k - 1]), (xa + xb) / 2, axisY + 12.5, { align: 'center' });
+        doc.text('+' + pdfText(fmt(uniq[k] - uniq[k - 1])), (xa + xb) / 2, axisY + 12.5, { align: 'center' });
       }
     }
     doc.setFillColor(...accent);
     list.forEach(it => doc.circle(it.x, axisY, 1.4, 'F'));
     doc.setFontSize(8.5);
-    doc.text(pdfText('Position auf der Achse = Punktzahl. Je größer der Abstand zwischen zwei Punkten, desto deutlicher der Prioritätsunterschied. Die Zahlen unter der Achse zeigen die Abstände zwischen benachbarten Rängen.'), M, Math.min(PH - 14, axisY + 20), { maxWidth: PW - 2 * M });
+    doc.text(pdfText(`Position auf der Achse = ${A.graded ? 'Skalenwert' : 'Punktzahl'}. Je größer der Abstand zwischen zwei Punkten, desto deutlicher der Prioritätsunterschied. Die Zahlen unter der Achse zeigen die Abstände zwischen benachbarten Rängen.`), M, Math.min(PH - 14, axisY + 20), { maxWidth: PW - 2 * M });
 
     const fname = (S.title.trim() || 'priorisierung').toLowerCase().replace(/[^a-z0-9äöüß]+/gi, '-').replace(/^-|-$/g, '') || 'priorisierung';
     doc.save(`${fname}-paarvergleich.pdf`);

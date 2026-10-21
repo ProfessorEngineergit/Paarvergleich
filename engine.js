@@ -10,6 +10,10 @@
  * mindestens L[i][k] + L[k][j] - N Personen. Für N = 1 ist das genau die Regel
  * „a vor b und b vor c ⇒ a vor c“.
  * Ein Paar gilt als bestimmt, wenn L[i][j] + L[j][i] = N.
+ *
+ * Abgestuft (nur Einzelperson): Zu jeder Antwort gehört eine Stufe g (1 = etwas, 2 = höher,
+ * 3 = viel höher). Die Fragestrategie bleibt unverändert; die Stufen liefern zusätzlich die
+ * Abstände auf einer Skala (siehe applyScale).
  */
 (function (global) {
   'use strict';
@@ -54,15 +58,18 @@
 
   /**
    * items: [{letter, label}], answers: [{a, b, x}] (x = Stimmen für a gegenüber b),
-   * N: Anzahl Personen (1 bei Einzelperson), fast: Mehrheiten transitiv übertragen.
+   * N: Anzahl Personen (1 bei Einzelperson), fast: Mehrheiten transitiv übertragen,
+   * graded: Antworten tragen eine Stufe g (nur bei N = 1), daraus entsteht eine Abstandsskala.
    */
-  function analyze(items, answers, N, fast) {
+  function analyze(items, answers, N, fast, graded) {
     const n = items.length;
     const idx = {};
     items.forEach((o, k) => { idx[o.letter] = k; });
     const L = matrix(n, 0);
     const asked = matrix(n, false);
     const askedCount = new Array(n).fill(0);
+    const G = matrix(n, 0); // nur abgestuft (Einzelperson): Stufen, positiv = Zeilen-Item höher
+    graded = !!graded && N === 1;
     let used = 0;
     for (const a of answers) {
       const i = idx[a.a], j = idx[a.b];
@@ -70,6 +77,7 @@
       L[i][j] = a.x; L[j][i] = N - a.x;
       asked[i][j] = asked[j][i] = true;
       askedCount[i]++; askedCount[j]++;
+      if (graded) { const g = a.x === 1 ? gradeOf(a) : -gradeOf(a); G[i][j] = g; G[j][i] = -g; }
       used++;
     }
     closure(L, N);
@@ -119,6 +127,9 @@
     const points = new Array(n).fill(0);
     for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) if (X[i][j] != null) points[i] += X[i][j];
     A.points = points;
+    A.maxPts = (n - 1) * N;
+    A.graded = graded;
+    if (graded && A.complete) applyScale(A, G);
 
     let cAsked = 0, cInf = 0, cEst = 0, cOpen = 0;
     for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
@@ -127,6 +138,62 @@
     }
     A.counts = { pairs: n * (n - 1) / 2, asked: cAsked, inferred: cInf, estimated: cEst, open: cOpen };
     return A;
+  }
+
+  // Abstufung einer Antwort: 1 = etwas höher, 2 = höher, 3 = viel höher.
+  function gradeOf(a) { return a.g >= 1 && a.g <= 3 ? Math.round(a.g) : 1; }
+
+  const MIN_GAP = 0.2; // Mindestabstand zweier Ränge in Stufen (bleibt auch nach dem Runden auf 0,1 unterscheidbar)
+  const round1 = v => Math.round(v * 10) / 10;
+
+  // Abgestufte Einzelpriorisierung: Die Reihenfolge steht bereits fest (Transitivität). Die Stufen
+  // werden als Abstände auf einer gemeinsamen Skala gelesen. Gesucht sind die Abstände zwischen
+  // benachbarten Rängen: Jede gefragte Antwort sagt, wie groß die Summe der Abstände zwischen
+  // ihren beiden Items ist. Weil jedes Item mehrfach verglichen wurde, widersprechen sich die
+  // Angaben leicht; die Abstände sind daher die Ausgleichslösung (kleinste Quadrate) unter der
+  // Bedingung, dass jeder Abstand mindestens MIN_GAP beträgt. Nicht gefragte Paare ergeben sich
+  // als Differenz der Skalenwerte, es ist keine Zusatzfrage nötig.
+  function applyScale(A, G) {
+    const { n, asked, X, points } = A;
+    const order = [...Array(n).keys()].sort((p, q) => points[p] - points[q]); // niedrigste Priorität zuerst
+    const pos = new Array(n);
+    order.forEach((k, t) => { pos[k] = t; });
+    const edges = [];
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      if (!asked[i][j]) continue;
+      const hi = pos[i] > pos[j] ? i : j, lo = hi === i ? j : i;
+      edges.push({ from: pos[lo], to: pos[hi], d: Math.abs(G[i][j]) });
+    }
+    // Überschuss h[t] = Abstand[t] - MIN_GAP >= 0, Koordinatenabstieg (nichtnegative kleinste Quadrate).
+    const m = n - 1, h = new Array(m).fill(0);
+    const cover = Array.from({ length: m }, () => []);
+    edges.forEach((e, k) => { for (let t = e.from; t < e.to; t++) cover[t].push(k); });
+    const res = edges.map(e => e.d - MIN_GAP * (e.to - e.from));
+    for (let sweep = 0; sweep < 5000; sweep++) {
+      let move = 0;
+      for (let t = 0; t < m; t++) {
+        if (!cover[t].length) continue;
+        let g = 0;
+        for (const k of cover[t]) g += res[k];
+        const nh = Math.max(0, h[t] + g / cover[t].length);
+        const dh = nh - h[t];
+        if (dh) { for (const k of cover[t]) res[k] -= dh; h[t] = nh; move = Math.max(move, Math.abs(dh)); }
+      }
+      if (move < 1e-7) break;
+    }
+    const scale = new Array(n);
+    let acc = 0;
+    order.forEach((k, t) => { if (t) acc += MIN_GAP + h[t - 1]; scale[k] = acc; });
+
+    let dev = 0;
+    for (const e of edges) dev += Math.abs(e.d - (scale[order[e.to]] - scale[order[e.from]]));
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+      if (i !== j) X[i][j] = asked[i][j] ? G[i][j] : round1(scale[i] - scale[j]);
+    }
+    A.scale = scale.map(round1);
+    A.points = A.scale;
+    A.maxPts = Math.max(...A.scale);
+    A.fitDev = edges.length ? dev / edges.length : 0; // mittlere Abweichung der Skala von den Angaben in Stufen
   }
 
   // Schätzwert für ein nicht gefragtes Paar im Schnellmodus: Mitte des zulässigen Bereichs,

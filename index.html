@@ -3,13 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Paarvergleich Priorisierung</title>
+<title>Paarvergleich Priorisierung – tillnovotny.de</title>
 <meta name="description" content="Bis zu 20 Items per paarweisem Vergleich priorisieren – einzeln oder in der Gruppe, mit möglichst wenigen Fragen und PDF-Auswertung.">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <header class="top">
   <div class="wrap">
+    <div class="brandbar">
+      <a class="wordmark" href="https://tillnovotny.de" target="_blank" rel="noopener">Till Novotny</a>
+      <a class="brand" href="https://tillnovotny.de" target="_blank" rel="noopener">Zur Website ↗</a>
+    </div>
     <h1>Paarvergleich</h1>
     <p class="sub">Bis zu 20 Items durch paarweise Vergleiche priorisieren – mit möglichst wenigen Fragen.</p>
     <ol class="steps" id="steps">
@@ -30,6 +34,9 @@
     <div class="choice">
       <label class="opt"><input type="radio" name="mode" value="single"> <span><strong>Einzelperson</strong><br><small>Pro Vergleich wird ein Item gewählt. Es bekommt einen Punkt.</small></span></label>
       <label class="opt"><input type="radio" name="mode" value="group"> <span><strong>Gruppe</strong><br><small>Pro Vergleich wird erfasst, wie viele Personen sich für welches Item entscheiden. Jede Stimme ist ein Punkt.</small></span></label>
+    </div>
+    <div id="singleOpts" hidden>
+      <label class="check"><input type="checkbox" id="graded"> <span><strong>Abgestuft priorisieren</strong>: Bei jedem Vergleich zusätzlich wählen, wie deutlich der Unterschied ist („viel höher“, „höher“, „etwas höher“). Die Zahl der Fragen bleibt gleich, die Skala zeigt aber realistischere Abstände.</span></label>
     </div>
     <div id="groupOpts" hidden>
       <label class="field">Anzahl der Gruppenmitglieder
@@ -92,7 +99,7 @@
     </div>
     <div class="card">
       <h3>Prioritätenskala</h3>
-      <p class="muted small">Position = Punktzahl. So sind die Abstände zwischen den Items direkt zu sehen.</p>
+      <p class="muted small" id="scaleNote">Position = Punktzahl. So sind die Abstände zwischen den Items direkt zu sehen.</p>
       <div id="scale" class="scroll"></div>
     </div>
     <div class="card">
@@ -103,6 +110,7 @@
   </section>
 
   <footer class="foot">
+    <a class="brand-foot" href="https://tillnovotny.de" target="_blank" rel="noopener">Mehr auf tillnovotny.de ↗</a>
     <button class="link" id="exportBtn">Sitzung speichern (JSON)</button>
     <label class="link">Sitzung laden<input type="file" id="importFile" accept="application/json" hidden></label>
     <button class="link" id="resetBtn">Neu beginnen</button>
