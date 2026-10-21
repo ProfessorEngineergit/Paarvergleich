@@ -24,4 +24,4 @@ Antworten lassen sich zurücknehmen. Der Stand wird lokal im Browser gespeichert
 - `index.html`, `style.css`, `app.js`: Oberfläche und PDF-Export (jsPDF)
 - `engine.js`: Rechenkern (Ableitung, Fragestrategie, Rangliste, Abstandsskala)
 
-Branding: [tillnovotny.de](https://tillnovotny.de) im Seitenkopf, Footer und PDF.
+Branding: Look an [tillnovotny.de](https://tillnovotny.de) angelehnt (Schrift Korpus Grotesk, helles Grau, schwarze Pillen-Buttons, Pink `#e94874` als Akzent), Links im Seitenkopf, Footer und PDF. Die Schrift wird direkt von tillnovotny.de geladen. Browser erlauben das nur, wenn die Seite auf tillnovotny.de liegt oder der Server `Access-Control-Allow-Origin` sendet; sonst greift die Ersatzschrift (Helvetica/Arial). Schriftdateien sind bewusst nicht im Repo, da die Lizenz nicht geklärt ist.

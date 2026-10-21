@@ -349,7 +349,7 @@
     const c = A.counts;
     const title = pdfText(S.title.trim() || 'Priorisierung per Paarvergleich');
     const date = new Date().toLocaleDateString('de-DE');
-    const accent = [31, 111, 139];
+    const accent = [233, 72, 116], accentInk = [200, 49, 95];
     let page = 0;
 
     const header = sub => {
@@ -361,9 +361,13 @@
       doc.text(pdfText(`${sub}  ·  ${modeText()}  ·  ${A.n} Items  ·  ${date}`), M, 19);
       const pg = `Seite ${page}`;
     doc.text(pg, PW - M, PH - 6, { align: 'right' });
-    doc.setTextColor(...accent);
-    doc.textWithLink('tillnovotny.de', PW - M - doc.getTextWidth(pg) - 6 - doc.getTextWidth('tillnovotny.de'), PH - 6, { url: 'https://tillnovotny.de' });
-    doc.setTextColor(93, 104, 119);
+    const link = 'tillnovotny.de';
+    const xr = PW - M - doc.getTextWidth(pg) - 6;
+    doc.setTextColor(...accentInk);
+    doc.textWithLink(link, xr - doc.getTextWidth(link), PH - 6, { url: 'https://tillnovotny.de' });
+    doc.setFont('helvetica', 'bold'); doc.setTextColor(28, 36, 48);
+    doc.text('TILL NOVOTNY', xr - doc.getTextWidth(link) - 3, PH - 6, { align: 'right' });
+    doc.setFont('helvetica', 'normal'); doc.setTextColor(93, 104, 119);
       doc.text(pdfText(`Paare: ${c.pairs} · gefragt: ${c.asked} · errechnet: ${c.inferred}${c.estimated ? ' · geschätzt: ' + c.estimated : ''} · Vollständigkeitscheck: ${c.open === 0 ? 'bestanden' : c.open + ' offen'}`), M, PH - 6);
       doc.setTextColor(28, 36, 48);
     };
@@ -400,7 +404,7 @@
         if (i !== j) doc.text(pdfText((st === 'estimated' ? '~' : '') + (A.graded ? sgn(A.X[i][j]) : A.X[i][j])), cx + cw / 2, y + rh * 0.68, { align: 'center' });
       });
       const sx = x0 + labelW + A.n * cw;
-      doc.setFillColor(230, 241, 245); doc.rect(sx, y, cw, rh, 'FD');
+      doc.setFillColor(253, 237, 242); doc.rect(sx, y, cw, rh, 'FD');
       doc.setFont('helvetica', 'bold'); doc.text(pdfText(fmt(A.points[i])), sx + cw / 2, y + rh * 0.68, { align: 'center' });
       y += rh;
     });
