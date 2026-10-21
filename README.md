@@ -1,11 +1,11 @@
-# Paarvergleich – Priorisierung
+# Paarvergleich - Priorisierung
 
-Web-App, die bis zu 20 Items per paarweisem Vergleich in eine Reihenfolge bringt – für eine Einzelperson oder eine Gruppe. Die Vergleichslogik läuft im Browser (GitHub Pages); der Arbeitsstand wird lokal gespeichert. Die Seite lädt externe Ressourcen, darunter eine Schrift von tillnovotny.de. „Lokal“ bedeutet deshalb nicht, dass keinerlei Netzwerkverbindungen entstehen.
+Web-App, die bis zu 20 Items per paarweisem Vergleich in eine Reihenfolge bringt - für eine Einzelperson oder eine Gruppe. Die Vergleichslogik läuft im Browser (GitHub Pages); der Arbeitsstand wird lokal gespeichert. Die Seite lädt externe Ressourcen, darunter eine Schrift von tillnovotny.de. „Lokal“ bedeutet deshalb nicht, dass keinerlei Netzwerkverbindungen entstehen.
 
 ## Ablauf
 1. **Modus**: Einzelperson oder Gruppe (mit Anzahl der Mitglieder für den Vollständigkeitscheck).
-2. **Items**: bis zu 20 Zeilen `a`–`t`, jeweils mit Stichwort. Nur benannte Zeilen zählen. Eine Liste kann auch eingefügt werden.
-3. **Vergleiche**: Einzelperson wählt je Paar ein Item – optional abgestuft („viel höher“, „höher“, „etwas höher“, Tasten 1–6). In der Gruppe wird die Stimmenzahl für ein Item eingegeben, die zweite errechnet die App aus der Gruppengröße.
+2. **Items**: bis zu 20 Zeilen `a`-`t`, jeweils mit Stichwort. Nur benannte Zeilen zählen. Eine Liste kann auch eingefügt werden.
+3. **Vergleiche**: Einzelperson wählt je Paar ein Item - optional abgestuft („viel höher“, „höher“, „etwas höher“, Tasten 1-6). In der Gruppe wird die Stimmenzahl für ein Item eingegeben, die zweite errechnet die App aus der Gruppengröße.
 4. **Ergebnis**: Bewertungsmatrix, Rangliste und Prioritätenskala, als PDF exportierbar.
 
 Jede Entscheidung bzw. Stimme gibt dem priorisierten Item einen Punkt. Die Summe der Punkte ist die Priorität.
@@ -26,6 +26,6 @@ Antworten lassen sich zurücknehmen. Der Stand wird lokal im Browser gespeichert
 
 Branding: Look an [tillnovotny.de](https://tillnovotny.de) angelehnt (Schrift Korpus Grotesk, helles Grau, schwarze Pillen-Buttons, Blau `#5a80ef` als Akzent), Links im Seitenkopf, Footer und PDF. Die Schrift wird direkt von tillnovotny.de geladen. Browser erlauben das nur, wenn die Seite auf tillnovotny.de liegt oder der Server `Access-Control-Allow-Origin` sendet; sonst greift die Ersatzschrift (Helvetica/Arial). Schriftdateien sind bewusst nicht im Repo, da die Lizenz nicht geklärt ist.
 
-## Entwicklung und KI-Beteiligung
+## KI-Beteiligung
 
-Kleines, KI-gestützt entwickeltes Lern- oder Experimentierprojekt. Die Historie des Hauptbranches enthält ausdrücklich Claude zugeschriebene Beiträge ([Beispiel](https://github.com/ProfessorEngineergit/Paarvergleich/commit/b47deb94ee6986f012eafefd2910a7022fb37163)). Das belegt KI-Beteiligung an diesen Beiträgen, nicht die Herkunft jeder Zeile oder eine unabhängige Prüfung. Bestehende Autor-, Co-Autoren- und Sitzungsangaben bleiben erhalten.
+Einzelne Code-Beiträge sind ausdrücklich KI-Tools zugeschrieben: [generated with Claude Code](https://github.com/ProfessorEngineergit/Paarvergleich/commit/209fac715cb354dc117eff4161254bc02e45b64b). Das gilt für diese Beiträge, nicht pauschal für alle Dateien.
