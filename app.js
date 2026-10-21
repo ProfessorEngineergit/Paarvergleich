@@ -244,7 +244,7 @@
       (c.estimated ? kpi(c.estimated, 'geschätzt') : '') +
       `<div class="status ${complete ? 'ok' : 'warn'}">${complete
         ? (A.graded
-          ? `Vollständigkeitscheck bestanden: Alle ${c.pairs} Paare bewertet, Reihenfolge widerspruchsfrei. Die Skala weicht im Mittel um ${fmt(Math.round(A.fitDev * 10) / 10)} Stufen von Deinen Angaben ab.`
+          ? `Vollständigkeitscheck bestanden: Alle ${c.pairs} Paare bewertet, Reihenfolge widerspruchsfrei.`
           : `Vollständigkeitscheck bestanden: Alle ${c.pairs} Paare bewertet, je Paar ${A.N} ${A.N === 1 ? 'Punkt' : 'Stimmen'}, Gesamtsumme ${c.pairs * A.N} Punkte.`)
         : `Vollständigkeitscheck nicht bestanden: ${c.open} Paare offen.`}
         ${c.asked < c.pairs ? ` Ersparnis: ${c.pairs - c.asked} von ${c.pairs} Fragen (${Math.round(100 * (c.pairs - c.asked) / c.pairs)} %).` : ''}</div>`;

@@ -185,15 +185,12 @@
     let acc = 0;
     order.forEach((k, t) => { if (t) acc += MIN_GAP + h[t - 1]; scale[k] = acc; });
 
-    let dev = 0;
-    for (const e of edges) dev += Math.abs(e.d - (scale[order[e.to]] - scale[order[e.from]]));
     for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
       if (i !== j) X[i][j] = asked[i][j] ? G[i][j] : round1(scale[i] - scale[j]);
     }
     A.scale = scale.map(round1);
     A.points = A.scale;
     A.maxPts = Math.max(...A.scale);
-    A.fitDev = edges.length ? dev / edges.length : 0; // mittlere Abweichung der Skala von den Angaben in Stufen
   }
 
   // Schätzwert für ein nicht gefragtes Paar im Schnellmodus: Mitte des zulässigen Bereichs,
