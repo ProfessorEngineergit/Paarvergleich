@@ -349,12 +349,13 @@
     const c = A.counts;
     const title = pdfText(S.title.trim() || 'Priorisierung per Paarvergleich');
     const date = new Date().toLocaleDateString('de-DE');
-    const accent = [90, 128, 239], accentInk = [58, 95, 208];
+    const green = [76, 177, 97], pink = [233, 70, 115], accent = [89, 128, 239], accentInk = [58, 95, 208];
+    const softGreen = [164, 216, 176], softBlue = [173, 191, 247], yellow = [255, 238, 74];
     let page = 0;
 
     const header = sub => {
       if (page++) doc.addPage();
-      doc.setFillColor(...accent); doc.rect(0, 0, PW, 3, 'F');
+      [green, pink, accent].forEach((col, k) => { doc.setFillColor(...col); doc.rect(k * PW / 3, 0, PW / 3, 3, 'F'); });
       doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.setTextColor(28, 36, 48);
       doc.text(title, M, 13);
       doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(93, 104, 119);
@@ -396,15 +397,15 @@
         const cx = x0 + labelW + j * cw;
         const st = A.status[i][j];
         if (i === j) doc.setFillColor(205, 210, 217);
-        else if (st === 'inferred') doc.setFillColor(227, 238, 252);
-        else if (st === 'estimated') doc.setFillColor(253, 241, 216);
+        else if (st === 'inferred') doc.setFillColor(...softBlue);
+        else if (st === 'estimated') doc.setFillColor(...yellow);
         else doc.setFillColor(255, 255, 255);
         doc.setDrawColor(200, 206, 214);
         doc.rect(cx, y, cw, rh, 'FD');
         if (i !== j) doc.text(pdfText((st === 'estimated' ? '~' : '') + (A.graded ? sgn(A.X[i][j]) : A.X[i][j])), cx + cw / 2, y + rh * 0.68, { align: 'center' });
       });
       const sx = x0 + labelW + A.n * cw;
-      doc.setFillColor(234, 240, 254); doc.rect(sx, y, cw, rh, 'FD');
+      doc.setFillColor(...softGreen); doc.rect(sx, y, cw, rh, 'FD');
       doc.setFont('helvetica', 'bold'); doc.text(pdfText(fmt(A.points[i])), sx + cw / 2, y + rh * 0.68, { align: 'center' });
       y += rh;
     });
@@ -416,8 +417,8 @@
       ? 'Lesart: Zelle = Abstand des Zeilen-Items zum Spalten-Item in Stufen (1 = etwas höher, 2 = höher, 3 = viel höher; Minus = niedriger). Gefragt: gegebene Stufe, errechnet: Differenz der Skalenwerte.'
       : `Lesart: Zelle = ${A.N === 1 ? 'Punkt' : 'Stimmen'} des Zeilen-Items im Vergleich mit dem Spalten-Item. Zeilensumme = Priorität (max. ${maxPts}).`), M, y, { maxWidth: PW - 2 * M });
     y += 5;
-    const legend = [[[255, 255, 255], 'gefragt'], [[227, 238, 252], 'errechnet (logisch abgeleitet)']];
-    if (c.estimated) legend.push([[253, 241, 216], '~ geschätzt (Schnellmodus)']);
+    const legend = [[[255, 255, 255], 'gefragt'], [softBlue, 'errechnet (logisch abgeleitet)']];
+    if (c.estimated) legend.push([yellow, '~ geschätzt (Schnellmodus)']);
     let lx = M;
     legend.forEach(([col, t]) => {
       doc.setFillColor(...col); doc.rect(lx, y - 3, 4, 4, 'FD');
