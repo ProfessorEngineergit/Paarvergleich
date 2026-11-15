@@ -46,6 +46,49 @@
   const modeText = () => S.mode === 'group' ? `Gruppe mit ${S.groupSize} Personen${S.fast ? ' (Schnellmodus)' : ''}` : `Einzelperson${S.graded ? ' (abgestuft)' : ''}`;
   const GRADES = { 3: 'viel höher', 2: 'höher', 1: 'etwas höher' };
 
+  // Schritt-Tabs: Warum ist ein Schritt noch nicht erreichbar? null = erreichbar.
+  function stepBlock(n) {
+    if (n === 1) return null;
+    if (!S.mode) return 'Bitte zuerst einen Modus wählen.';
+    if (S.mode === 'week') return window.PVWeek.block(n);
+    if (n > 4) return 'Diesen Schritt gibt es nur in der Wochenplanung.';
+    if (n === 2) return null;
+    if (items().length < 2) return 'Bitte zuerst unter „Items“ mindestens zwei Items erfassen.';
+    if (n === 3) return null;
+    if (!analysis().complete) return 'Bitte zuerst alle Vergleiche beantworten.';
+    return null;
+  }
+  // Hinweis, wenn ein Schritt erreichbar ist, aber nichts mehr zu tun hat.
+  function stepNote(n) {
+    if (n !== 3 || !S.mode) return null;
+    const done = S.mode === 'week' ? window.PVWeek.complete() : analysis().complete;
+    return done ? 'Alle Vergleiche sind beantwortet. Zum Korrigieren im Ergebnis „Zu den Vergleichen“ wählen.' : null;
+  }
+  let toastT = null;
+  function toast(msg) {
+    const t = $('toast');
+    t.textContent = msg; t.hidden = false; t.classList.remove('out');
+    t.style.animation = 'none'; void t.offsetWidth; t.style.animation = '';
+    clearTimeout(toastT);
+    toastT = setTimeout(() => { t.classList.add('out'); toastT = setTimeout(() => { t.hidden = true; }, 300); }, 2800);
+  }
+  function stepClick(li) {
+    const n = +li.dataset.step;
+    if (n === S.step) return;
+    const msg = stepBlock(n) || stepNote(n);
+    if (msg) {
+      toast(msg);
+      li.classList.remove('nope'); void li.offsetWidth; li.classList.add('nope');
+      return;
+    }
+    go(n);
+  }
+  $('steps').addEventListener('click', e => { const li = e.target.closest('li'); if (li) stepClick(li); });
+  $('steps').addEventListener('keydown', e => {
+    const li = e.target.closest('li');
+    if (li && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); stepClick(li); }
+  });
+
   function go(step) { S.step = step; save(); render(); window.scrollTo(0, 0); }
 
   const STEP_NAMES = { std: ['Modus', 'Items', 'Vergleiche', 'Ergebnis'], week: ['Modus', 'Projekte', 'Vergleiche', 'Ergebnis', 'Projektstand'] };
@@ -59,10 +102,16 @@
     const names = STEP_NAMES[wk ? 'week' : 'std'];
     document.querySelectorAll('#steps li').forEach(li => {
       const n = +li.dataset.step;
+      const locked = n !== S.step && !!stepBlock(n);
       li.hidden = n > names.length;
       li.textContent = names[n - 1] || '';
       li.classList.toggle('active', n === S.step);
-      li.classList.toggle('done', n < S.step);
+      li.classList.toggle('done', n !== S.step && !locked);
+      li.classList.toggle('locked', locked);
+      li.tabIndex = n === S.step ? -1 : 0;
+      li.setAttribute('role', 'button');
+      li.setAttribute('aria-disabled', String(locked));
+      if (n === S.step) li.setAttribute('aria-current', 'step'); else li.removeAttribute('aria-current');
     });
     if (S.step === 1) { renderStep1(); return; }
     if (wk) { window.PVWeek.render(S.step); return; }
@@ -93,11 +142,11 @@
     const changed = before !== JSON.stringify([S.base, S.groupSize, S.fast, S.graded]);
     if (changed && S.answers.length) {
       if (!confirm('Die bisherigen Antworten passen nicht mehr zu dieser Einstellung und werden verworfen. Fortfahren?')) {
-        Object.assign(S, prev); renderStep1(); return;
+        Object.assign(S, prev); render(); return;
       }
       S.answers = [];
     }
-    save(); renderStep1();
+    save(); render();
   }
   document.querySelectorAll('input[name=mode]').forEach(r => r.addEventListener('change', () => settingsChange(() => { S.mode = r.value; if (r.value !== 'week') S.base = r.value; })));
   $('groupSize').addEventListener('change', e => settingsChange(() => { S.groupSize = Math.max(2, Math.min(500, parseInt(e.target.value, 10) || 2)); }));
