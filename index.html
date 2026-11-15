@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<div class="bg" aria-hidden="true"><span class="blob b1"></span><span class="blob b2"></span></div>
 <header class="top">
   <div class="wrap">
     <div class="brandbar">
@@ -54,7 +55,7 @@
       <input type="text" id="title" maxlength="120" placeholder="z. B. Prioritäten Q1">
     </label>
     <div class="actions">
-      <button class="primary" id="toStep2">Weiter zu den Items</button>
+      <button class="primary go" id="toStep2">Weiter zu den Items</button>
     </div>
   </section>
 
@@ -70,8 +71,8 @@
     <div id="itemRows" class="items"></div>
     <p class="muted small" id="itemInfo"></p>
     <div class="actions">
-      <button id="back1">Zurück</button>
-      <button class="primary" id="toStep3">Vergleiche starten</button>
+      <button class="back" id="back1">Zurück</button>
+      <button class="primary go" id="toStep3">Vergleiche starten</button>
     </div>
   </section>
 
@@ -82,7 +83,7 @@
     <div id="question"></div>
     <div class="actions">
       <button id="undoBtn">Letzte Antwort zurücknehmen</button>
-      <button id="back2">Items bearbeiten</button>
+      <button class="back" id="back2">Items bearbeiten</button>
     </div>
   </section>
 
@@ -92,8 +93,8 @@
       <div class="result-head">
         <h2 id="resTitle">Ergebnis</h2>
         <div class="btns">
-          <button class="primary" id="pdfBtn">PDF herunterladen</button>
-          <button id="back3">Zu den Vergleichen</button>
+          <button class="primary dl" id="pdfBtn">PDF herunterladen</button>
+          <button class="back" id="back3">Zu den Vergleichen</button>
         </div>
       </div>
       <div id="checkBox" class="checkbox"></div>
@@ -144,7 +145,7 @@
         <label><input type="radio" name="aKind" value="work" checked> beruflich</label>
         <label><input type="radio" name="aKind" value="private"> <i>privat</i></label>
       </span>
-      <button class="primary" id="aAdd">Hinzufügen</button>
+      <button class="primary add" id="aAdd">Hinzufügen</button>
     </div>
     <div class="avals"><span class="muted small">Zahlt ein auf:</span> <span id="aValues"></span></div>
     <p class="err left" id="aErr"></p>
@@ -156,8 +157,8 @@
       <div id="wTrack2"></div>
     </details>
     <div class="actions">
-      <button id="wBack1">Zurück</button>
-      <button class="primary" id="wToCompare">Vergleiche starten</button>
+      <button class="back" id="wBack1">Zurück</button>
+      <button class="primary go" id="wToCompare">Vergleiche starten</button>
     </div>
   </section>
 
@@ -168,7 +169,7 @@
     <div id="wQuestion"></div>
     <div class="actions">
       <button id="wUndo">Letzte Antwort zurücknehmen</button>
-      <button id="wBack2">Projekte bearbeiten</button>
+      <button class="back" id="wBack2">Projekte bearbeiten</button>
     </div>
   </section>
 
@@ -181,9 +182,9 @@
           <p class="muted small" id="wResSub"></p>
         </div>
         <div class="btns">
-          <button class="primary" id="wPdf">PDF herunterladen</button>
-          <button id="wEdit">Projekte bearbeiten</button>
-          <button id="wBack3">Zu den Vergleichen</button>
+          <button class="primary dl" id="wPdf">PDF herunterladen</button>
+          <button class="back" id="wEdit">Projekte bearbeiten</button>
+          <button class="back" id="wBack3">Zu den Vergleichen</button>
         </div>
       </div>
       <div id="wKpis" class="checkbox"></div>
@@ -211,7 +212,7 @@
     </div>
     <div class="card center">
       <p class="muted small">Während der Woche den aktuellen Projektstand erfassen.</p>
-      <button class="primary" id="wToStatus">Zum Projektstand</button>
+      <button class="primary go" id="wToStatus">Zum Projektstand</button>
     </div>
   </section>
 
@@ -224,7 +225,7 @@
           <p class="muted small" id="wStSub"></p>
         </div>
         <div class="btns">
-          <button id="wToResult">Zur Auswertung</button>
+          <button class="back" id="wToResult">Zur Auswertung</button>
           <button id="wAddMore">Projekte ergänzen</button>
         </div>
       </div>
@@ -242,7 +243,7 @@
     <div class="card">
       <h3>Woche abschließen</h3>
       <p class="muted small">Noch offene und verschobene Projekte erscheinen bei der nächsten Wochenplanung unter den nicht erledigten Projekten; ihre Verschiebungen zählen dabei um eins hoch.</p>
-      <button class="primary" id="wNewWeek">Neue Woche planen</button>
+      <button class="primary go" id="wNewWeek">Neue Woche planen</button>
     </div>
   </section>
 

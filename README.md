@@ -37,7 +37,7 @@ Antworten lassen sich zurücknehmen. Der Stand wird lokal im Browser gespeichert
 - `week.js`: Wochenplanung
 - `engine.js`: Rechenkern (Ableitung, Fragestrategie, Rangliste, Abstandsskala)
 
-Branding: Look an [tillnovotny.de](https://tillnovotny.de) angelehnt (Schrift Korpus Grotesk, helles Grau, schwarze Pillen-Buttons, Blau `#5a80ef` als Akzent), Links im Seitenkopf, Footer und PDF. Die Schrift wird direkt von tillnovotny.de geladen. Browser erlauben das nur, wenn die Seite auf tillnovotny.de liegt oder der Server `Access-Control-Allow-Origin` sendet; sonst greift die Ersatzschrift (Helvetica/Arial). Schriftdateien sind bewusst nicht im Repo, da die Lizenz nicht geklärt ist.
+Branding: Look an [tillnovotny.de](https://tillnovotny.de) angelehnt (Schrift Korpus Grotesk, helles Grau, schwarze Pillen-Buttons, Blau `#5a80ef` als Akzent). Darüber ein Glas-Design: halbtransparente Karten mit Hintergrund-Unschärfe und feinem Rand (schwarz, im Dunkelmodus weiß), ein weicher pinker Lichtpunkt (`#e94673`), der je Schritt fließend an eine andere Stelle wandert, sowie kleine Animationen (Pfeile, Einblenden, Matrix). Bei „Bewegung reduzieren“ im System entfallen die Animationen, Links im Seitenkopf, Footer und PDF. Die Schrift wird direkt von tillnovotny.de geladen. Browser erlauben das nur, wenn die Seite auf tillnovotny.de liegt oder der Server `Access-Control-Allow-Origin` sendet; sonst greift die Ersatzschrift (Helvetica/Arial). Schriftdateien sind bewusst nicht im Repo, da die Lizenz nicht geklärt ist.
 
 ## KI-Beteiligung
 

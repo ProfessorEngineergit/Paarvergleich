@@ -553,7 +553,7 @@
     el.innerHTML = `<div class="qm-wrap"><div class="qm-y">Wichtigkeit →</div><div class="qm-area">
         <div class="qq q4"><span>4 · Wert</span></div><div class="qq q1"><span>1 · Fokus</span></div>
         <div class="qq q3"><span>3 · Abwägung</span></div><div class="qq q2"><span>2 · Notwendigkeit</span></div>
-        ${list.map(r => `<button class="chip q${r.q}${r.p.kind === 'private' ? ' priv' : ''}" data-id="${r.p.id}" aria-label="${esc(r.p.label)}">${esc(shorten(r.p.label, 18))}</button>`).join('')}
+        ${list.map((r, i) => `<button class="chip q${r.q}${r.p.kind === 'private' ? ' priv' : ''}" style="--i:${i}" data-id="${r.p.id}" aria-label="${esc(r.p.label)}">${esc(shorten(r.p.label, 18))}</button>`).join('')}
         <div class="qtip" hidden></div></div></div><div class="qm-x">Dringlichkeit →</div>`;
     const area = el.querySelector('.qm-area');
     const layout = () => {
