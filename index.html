@@ -129,6 +129,9 @@
     </div>
     <div id="wTotal" class="wtotal"></div>
 
+    <h3>Wertbereiche</h3>
+    <div id="wValues" class="wvalues"></div>
+
     <h3>Nicht erledigte Projekte der letzten Woche</h3>
     <div id="wCarried"></div>
 
@@ -143,6 +146,7 @@
       </span>
       <button class="primary" id="aAdd">Hinzufügen</button>
     </div>
+    <div class="avals"><span class="muted small">Zahlt ein auf:</span> <span id="aValues"></span></div>
     <p class="err left" id="aErr"></p>
     <div id="wList"></div>
     <div id="wParked"></div>
@@ -194,6 +198,11 @@
       <h3>Vier-Felder-Matrix</h3>
       <p class="muted small">Position = Ergebnis der Vergleiche, die Mittellinien liegen am Median. Stichwort anklicken oder darauf zeigen, um die Beschreibung zu sehen.</p>
       <div id="wMatrix" class="qm"></div>
+    </div>
+    <div class="card">
+      <h3>Wertbereiche: Gewichtung und geplante Zeit</h3>
+      <p class="muted small">Passt die Verteilung der geplanten Zeit zu dem, was mir wichtig ist?</p>
+      <div id="wBalance"></div>
     </div>
     <div class="card">
       <h3>Details der Vergleiche</h3>

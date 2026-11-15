@@ -276,3 +276,25 @@ button.mini.more { border-color: var(--more); }
 .track tr.tmore td, .track tr.tmore .pdesc { color: var(--more); }
 .track .priv .pl { font-style: italic; }
 .swatch.tmore-sw { background: var(--more); border-color: var(--more); margin-left: 0; }
+
+/* Wertbereiche */
+.wvalues { margin-bottom: 8px; }
+.vchecks { display: inline-flex; flex-wrap: wrap; gap: 4px 12px; font-size: .88rem; }
+.vchecks label { display: inline-flex; gap: 4px; align-items: center; cursor: pointer; white-space: nowrap; }
+.avals { margin: 8px 0 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.pedit .vchecks { grid-column: 1 / -1; }
+.pvals { display: inline-block; font-size: .75rem; color: var(--accent-ink); margin-left: 6px; }
+.gitem .pvals { margin: 4px 0 0; }
+.small-item { min-height: 56px; }
+.vbars { display: grid; gap: 6px; max-width: 520px; margin: 4px 0 8px; }
+.vbar { display: grid; grid-template-columns: 110px 1fr 48px; gap: 10px; align-items: center; font-size: .9rem; }
+.vtrack { height: 10px; background: var(--line); border-radius: 5px; overflow: hidden; }
+.vtrack span { display: block; height: 100%; background: var(--accent); }
+.vp { text-align: right; font-variant-numeric: tabular-nums; }
+.gpick.suggest { box-shadow: 0 0 0 3px color-mix(in srgb, var(--q4) 55%, transparent); }
+.sug-note { color: var(--ok); }
+.vbal .bar { height: 7px; margin: 2px 0; }
+.vbal .bar.bw { background: var(--q2); }
+.vbal .bar.bt { background: var(--q4); }
+.lg { display: inline-block; width: 10px; height: 7px; vertical-align: 1px; }
+.lg-w { background: var(--q2); } .lg-t { background: var(--q4); }

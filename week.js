@@ -43,9 +43,17 @@
       g: { 3: 'viel dringender', 2: 'dringender', 1: 'etwas dringender' } },
   };
   const STATUS = ['open', 'done', 'more', 'moved', 'dropped'];
+  // Wertbereiche, auf die Projekte einzahlen. Ihre Gewichtung entsteht aus einem eigenen,
+  // abgestuften Paarvergleich und bleibt über die Wochen gespeichert.
+  const VALUES = [
+    { k: 'ges', n: 'Gesundheit' }, { k: 'fam', n: 'Familie' }, { k: 'fre', n: 'Freunde' },
+    { k: 'erf', n: 'Erfolg' }, { k: 'ent', n: 'Entwicklung' },
+  ];
+  const VKEYS = VALUES.map(v => v.k);
+  const VNAME = Object.fromEntries(VALUES.map(v => [v.k, v.n]));
 
   // ---------- Daten ----------
-  const blank = () => ({ cur: null, backlog: [], tracking: [] });
+  const blank = () => ({ cur: null, backlog: [], tracking: [], values: { answers: [] } });
   let W = load();
   let editId = null;
 
@@ -63,6 +71,7 @@
       hours: isFinite(h) && h >= 0 ? Math.round(h * 10) / 10 : 0,
       kind: p.kind === 'private' ? 'private' : 'work',
       shifts: Math.max(0, parseInt(p.shifts, 10) || 0),
+      values: Array.isArray(p.values) ? VKEYS.filter(k => p.values.includes(k)) : [],
     };
   }
   function cleanAnswers(a) {
@@ -72,6 +81,9 @@
   function sanitize(o) {
     const w = blank();
     if (!o || typeof o !== 'object') return w;
+    if (o.values && Array.isArray(o.values.answers)) {
+      w.values.answers = cleanAnswers(o.values.answers).filter(a => VKEYS.includes(a.a) && VKEYS.includes(a.b));
+    }
     if (Array.isArray(o.backlog)) w.backlog = o.backlog.map(cleanProject).filter(Boolean);
     if (Array.isArray(o.tracking)) w.tracking = o.tracking.map(t => {
       const p = cleanProject(t);
@@ -92,6 +104,8 @@
     }
     return w;
   }
+  // Stammdaten eines Projekts (für Übernahme in die nächste Woche und Tracking).
+  const base = p => ({ id: p.id, label: p.label, hours: p.hours, desc: p.desc, kind: p.kind, shifts: p.shifts, values: p.values.slice() });
   function newId() { return 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
   // ---------- Datum ----------
@@ -177,6 +191,93 @@
     return { rows, groups, medImp: si.median, medUrg: su.median };
   }
 
+  // ---------- Wertbereiche ----------
+  let valuesRun = false; // Gewichtung wird gerade abgefragt
+  const valueAnalysis = () => PV.analyze(VALUES.map(v => ({ letter: v.k, label: v.n })), W.values.answers, 1, false, true);
+  // Gewichte in Prozent (Summe 100). Skalenwert + 1, damit auch der niedrigste Bereich zählt.
+  function weights() {
+    if (!W.values.answers.length) return null;
+    const A = valueAnalysis();
+    if (!A.complete) return null;
+    const raw = A.points.map(v => v + 1), sum = raw.reduce((a, b) => a + b, 0);
+    const w = {};
+    VALUES.forEach((v, i) => { w[v.k] = 100 * raw[i] / sum; });
+    return w;
+  }
+  // Wertgewicht eines Projekts = Summe der Gewichte seiner Wertbereiche (0–100 %).
+  function projWeight(p, w) {
+    w = w === undefined ? weights() : w;
+    return w && p.values.length ? p.values.reduce((s, k) => s + w[k], 0) : null;
+  }
+  const pctTxt = v => Math.round(v) + ' %';
+  function valueChecks(name, sel) {
+    return `<span class="vchecks" role="group" aria-label="Wertbereiche">${VALUES.map(v =>
+      `<label><input type="checkbox" name="${name}" value="${v.k}" ${sel.includes(v.k) ? 'checked' : ''}> ${v.n}</label>`).join('')}</span>`;
+  }
+  const readChecks = (root, name) => [...root.querySelectorAll(`input[name=${name}]:checked`)].map(i => i.value);
+
+  function renderValues() {
+    const box = $('wValues'), w = weights();
+    if (valuesRun) {
+      const A = valueAnalysis();
+      if (A.complete) { valuesRun = false; save(); renderPlan(); return; }
+      const q = A.next, a = VALUES[q.i], b = VALUES[q.j];
+      const G = { 3: 'viel wichtiger', 2: 'wichtiger', 1: 'etwas wichtiger' };
+      const side = (v, order) => `<div class="gcol"><div class="gitem small-item"><span class="pl">${v.n}</span></div><div class="gbtns">` +
+        order.map(g => `<button class="gpick s${g}" data-vside="${v === a ? 1 : 0}" data-g="${g}"><span>${G[g]}</span></button>`).join('') + '</div></div>';
+      box.innerHTML = `<p class="q-title">Welcher Wertbereich ist mir wichtiger – und wie viel wichtiger?</p>
+        <p class="hint">Frage ${W.values.answers.length + 1} · ${A.counts.asked + A.counts.inferred} von ${A.counts.pairs} Paaren bestimmt</p>
+        <div class="gduel">${side(a, [3, 2, 1])}${side(b, [1, 2, 3])}</div>
+        <p class="center"><button class="mini" data-vact="undo" ${W.values.answers.length ? '' : 'disabled'}>Letzte Antwort zurücknehmen</button>
+        <button class="mini" data-vact="cancel">Abbrechen</button></p>`;
+      box.querySelectorAll('.gpick').forEach(btn => btn.addEventListener('click', () => {
+        W.values.answers.push({ a: a.k, b: b.k, x: +btn.dataset.vside, g: +btn.dataset.g });
+        save(); renderValues();
+      }));
+      return;
+    }
+    if (!w) {
+      box.innerHTML = `<p class="muted small">Gewichten Sie einmalig die Wertbereiche ${VALUES.map(v => v.n).join(', ')} (höchstens 10 Vergleiche). Ordnen Sie danach jedem Projekt die Wertbereiche zu, auf die es einzahlt: Beim Vergleich der Wichtigkeit zeigt die App dann einen Vorschlag, und das Ergebnis vergleicht Gewichtung und geplante Zeit.</p>
+        <button class="primary mini" data-vact="start">Wertbereiche gewichten</button>`;
+      return;
+    }
+    box.innerHTML = valueBarsHtml(w) + `<p><button class="mini" data-vact="restart">Neu gewichten</button></p>`;
+  }
+  function valueBarsHtml(w) {
+    const max = Math.max(...VKEYS.map(k => w[k]));
+    return '<div class="vbars">' + VALUES.slice().sort((x, y) => w[y.k] - w[x.k]).map(v =>
+      `<div class="vbar"><span class="vn">${v.n}</span><span class="vtrack"><span style="width:${100 * w[v.k] / max}%"></span></span><span class="vp">${pctTxt(w[v.k])}</span></div>`).join('') + '</div>';
+  }
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-vact]');
+    if (!b) return;
+    const act = b.dataset.vact;
+    if (act === 'start') { valuesRun = true; }
+    else if (act === 'restart') { if (!confirm('Wertbereiche neu gewichten? Die bisherige Gewichtung wird ersetzt.')) return; W.values.answers = []; valuesRun = true; }
+    else if (act === 'undo') { W.values.answers.pop(); }
+    else if (act === 'cancel') { valuesRun = false; }
+    save(); renderValues();
+  });
+
+  // Bilanz: Gewicht der Wertbereiche vs. Anteil der geplanten Zeit (Stunden eines Projekts
+  // werden gleichmäßig auf seine Wertbereiche verteilt).
+  function valueBalance(list, w) {
+    const hrs = Object.fromEntries(VKEYS.map(k => [k, 0]));
+    let none = 0;
+    list.forEach(p => { if (p.values.length) p.values.forEach(k => { hrs[k] += p.hours / p.values.length; }); else none += p.hours; });
+    const tot = VKEYS.reduce((s, k) => s + hrs[k], 0);
+    return { rows: VALUES.map(v => ({ ...v, w: w ? w[v.k] : null, h: hrs[v.k], share: tot ? 100 * hrs[v.k] / tot : 0 })), none, tot };
+  }
+  function balanceHtml(list) {
+    const w = weights(), B = valueBalance(list, w);
+    if (!w && !B.tot) return '<p class="muted small">Noch keine Wertbereiche gewichtet und keinem Projekt zugeordnet.</p>';
+    const rows = B.rows.slice().sort((x, y) => (y.w || 0) - (x.w || 0) || y.share - x.share);
+    return `<div class="scroll"><table class="rank vbal"><thead><tr><th>Wertbereich</th><th class="num">Gewicht</th><th class="num">geplante Zeit</th><th class="num">Zeitanteil</th><th>Gewicht <span class="lg lg-w"></span> · Zeitanteil <span class="lg lg-t"></span></th></tr></thead><tbody>` +
+      rows.map(r => `<tr><td>${r.n}</td><td class="num">${r.w == null ? '–' : pctTxt(r.w)}</td><td class="num">${fmtH(r.h)}</td><td class="num">${B.tot ? pctTxt(r.share) : '–'}</td>
+        <td class="barcell"><div class="bar bw" style="width:${r.w || 0}%"></div><div class="bar bt" style="width:${r.share}%"></div></td></tr>`).join('') +
+      `</tbody></table></div><p class="muted small">Stunden eines Projekts werden gleichmäßig auf seine Wertbereiche verteilt.${B.none ? ` ${fmtH(B.none)} ohne Wertbereich sind nicht enthalten.` : ''}${w ? '' : ' Für den Vergleich mit der Gewichtung zuerst die Wertbereiche gewichten.'}</p>`;
+  }
+
   // ---------- Bausteine ----------
   function totalHtml(planned, extra) {
     const c = cur(), avail = c.hours;
@@ -193,6 +294,11 @@
     edit: 'ändern', move: 'verschieben', drop: 'streichen', restore: 'zurückholen',
     done: 'erledigt wie geplant', more: 'erledigt mit mehr Zeit', reopen: 'zurücknehmen',
   };
+  function valuesTag(p) {
+    if (!p.values.length) return '';
+    const pw = projWeight(p);
+    return `<span class="pvals" title="Wertbereiche${pw == null ? '' : ' · Wertgewicht ' + pctTxt(pw)}">${p.values.map(k => VNAME[k]).join(' · ')}${pw == null ? '' : ` <b>${pctTxt(pw)}</b>`}</span>`;
+  }
   function rowHtml(p, acts, o) {
     o = o || {};
     const priv = p.kind === 'private';
@@ -203,6 +309,7 @@
           <input type="text" class="eHours" inputmode="decimal" value="${fmt(p.hours)}" aria-label="Dauer in Stunden">
           <input type="text" class="eDesc" maxlength="200" value="${esc(p.desc)}" placeholder="Kurze Beschreibung" aria-label="Kurze Beschreibung">
           <span class="kind"><label><input type="radio" name="eKind" value="work" ${priv ? '' : 'checked'}> beruflich</label><label><input type="radio" name="eKind" value="private" ${priv ? 'checked' : ''}> <i>privat</i></label></span>
+          ${valueChecks('eVal', p.values)}
         </div>
         <div class="pacts"><button class="mini primary" data-act="save">Speichern</button><button class="mini" data-act="cancel">Abbrechen</button></div>
         <p class="err left eErr"></p>
@@ -214,6 +321,7 @@
         <span class="ptag">${priv ? 'privat' : 'beruflich'}</span>
         ${p.shifts ? `<span class="pshift" title="Anzahl der bisherigen Verschiebungen">${p.shifts}× verschoben</span>` : ''}
         ${o.note ? `<span class="ptag">${o.note}</span>` : ''}
+        ${valuesTag(p)}
         ${p.desc ? `<div class="pdesc">${esc(p.desc)}</div>` : ''}
       </div>
       <div class="phours">${fmtH(p.hours)}</div>
@@ -260,6 +368,8 @@
   function renderPlan() {
     const c = cur();
     $('wStart').value = c.start;
+    renderValues();
+    if (!$('aValues').children.length) $('aValues').innerHTML = valueChecks('aVal', []);
     if (document.activeElement !== $('wHours')) $('wHours').value = c.hours == null ? '' : fmt(c.hours);
     const carried = c.projects.filter(p => p.carried && p.status === 'open');
     const fresh = c.projects.filter(p => !p.carried && p.status === 'open');
@@ -292,7 +402,9 @@
     $('aErr').textContent = err;
     if (err) return;
     const kind = document.querySelector('input[name=aKind]:checked').value;
-    cur().projects.push({ id: newId(), label, hours: h, desc: $('aDesc').value.trim(), kind, shifts: 0, carried: false, keep: false, status: 'open' });
+    const values = readChecks(document, 'aVal');
+    cur().projects.push({ id: newId(), label, hours: h, desc: $('aDesc').value.trim(), kind, values, shifts: 0, carried: false, keep: false, status: 'open' });
+    document.querySelectorAll('input[name=aVal]').forEach(i => { i.checked = false; });
     save();
     $('aLabel').value = ''; $('aHours').value = ''; $('aDesc').value = '';
     renderPlan();
@@ -305,7 +417,8 @@
     const h = parseHours(e.target.value);
     if (h === null || isFinite(h)) { cur().hours = h; save(); planInfo(); }
   });
-  $('wHours').addEventListener('blur', () => renderPlan());
+  // Nur das Feld neu formatieren; ein komplettes Neuzeichnen würde den gerade angeklickten Button ersetzen.
+  $('wHours').addEventListener('blur', e => { const h = cur().hours; e.target.value = h == null ? '' : fmt(h); });
   $('wStart').addEventListener('change', e => { if (isIsoDate(e.target.value)) { cur().start = e.target.value; save(); } });
   $('wBack1').addEventListener('click', () => App().go(1));
   $('wToCompare').addEventListener('click', () => {
@@ -326,16 +439,26 @@
     $('wUndo').disabled = !(c.imp.length || c.urg.length);
     const q = A.next, pa = R.inc[q.i], pb = R.inc[q.j], la = R.letter[pa.id], lb = R.letter[pb.id];
     const card = (p, l) => `<div class="gitem${p.kind === 'private' ? ' priv' : ''}"><span class="ltr">${l}</span><span class="pl">${esc(p.label)}</span>
-      <small class="muted">${fmtH(p.hours)} · ${p.kind === 'private' ? 'privat' : 'beruflich'}</small>${p.desc ? `<small class="pdesc">${esc(p.desc)}</small>` : ''}</div>`;
+      <small class="muted">${fmtH(p.hours)} · ${p.kind === 'private' ? 'privat' : 'beruflich'}</small>${dim === 'imp' ? valuesTag(p) : ''}${p.desc ? `<small class="pdesc">${esc(p.desc)}</small>` : ''}</div>`;
     const side = (p, l, order, off) => `<div class="gcol">${card(p, l)}<div class="gbtns">` +
-      order.map((g, k) => `<button class="gpick s${g}" data-side="${p === pa ? 1 : 0}" data-g="${g}"><span>${D.g[g]}</span><kbd>${off + k + 1}</kbd></button>`).join('') + '</div></div>';
+      order.map((g, k) => `<button class="gpick s${g}${sug && sug.side === (p === pa ? 1 : 0) && sug.g === g ? ' suggest' : ''}" data-side="${p === pa ? 1 : 0}" data-g="${g}"><span>${D.g[g]}</span><kbd>${off + k + 1}</kbd></button>`).join('') + '</div></div>';
     const fresh = dim === 'urg' && !cu.asked;
+    // Vorschlag aus den Wertbereichen (nur Wichtigkeit, nur wenn beide Projekte zugeordnet sind).
+    let sug = null;
+    if (dim === 'imp') {
+      const w = weights(), wa = projWeight(pa, w), wb = projWeight(pb, w);
+      if (wa != null && wb != null && Math.abs(wa - wb) >= 5) {
+        const d = Math.abs(wa - wb);
+        sug = { side: wa > wb ? 1 : 0, g: d >= 30 ? 3 : d >= 15 ? 2 : 1, wa, wb };
+      }
+    }
     $('wQuestion').innerHTML = `
       <p class="runbadge run-${dim}">${D.run}. Durchlauf: ${D.name}</p>
       ${fresh ? '<p class="hint ok-note">Wichtigkeit abgeschlossen. Jetzt dieselben Projekte nach Dringlichkeit vergleichen.</p>' : ''}
       <p class="q-title">${D.q}</p>
       <p class="hint">${D.hint}</p>
       <div class="gduel">${side(pa, la, [3, 2, 1], 0)}${side(pb, lb, [1, 2, 3], 3)}</div>
+      ${sug ? `<p class="hint sug-note">Vorschlag aus den Wertbereichen (markiert): <b>${sug.side ? la : lb}</b> ${D.g[sug.g]} – Wertgewicht ${pctTxt(sug.wa)} gegenüber ${pctTxt(sug.wb)}. Die Entscheidung bleibt bei Ihnen.</p>` : ''}
       <p class="hint">Ein Klick genügt (Tasten 1–6, Rücktaste = zurücknehmen).</p>`;
     $('wQuestion').querySelectorAll('.gpick').forEach(btn => btn.addEventListener('click', () => {
       c[dim].push({ a: pa.id, b: pb.id, x: +btn.dataset.side, g: +btn.dataset.g });
@@ -375,6 +498,7 @@
     $('wGroups').innerHTML = groupsHtml(cls, ['edit', 'move', 'drop']);
     $('wParked4').innerHTML = parkedHtml('Verschoben oder gestrichen', c.projects.filter(p => p.status === 'moved' || p.status === 'dropped'), ['restore']);
     drawMatrix($('wMatrix'), cls);
+    $('wBalance').innerHTML = balanceHtml(open);
     detail($('wDetImp'), R.imp);
     detail($('wDetUrg'), R.urg);
   }
@@ -505,7 +629,7 @@
     const c = W.cur;
     if (!c) return;
     c.projects.filter(p => p.status === 'open' || p.status === 'moved').forEach(p => {
-      W.backlog.push({ id: p.id, label: p.label, hours: p.hours, desc: p.desc, kind: p.kind, shifts: p.shifts + 1 });
+      W.backlog.push({ ...base(p), shifts: p.shifts + 1 });
     });
     // Tracking: ältere Einträge als zwölf Wochen werden nicht mehr benötigt.
     const cut = mondayOf(new Date()); cut.setDate(cut.getDate() - 84);
@@ -537,7 +661,7 @@
       const label = row.querySelector('.eLabel').value.trim(), h = parseHours(row.querySelector('.eHours').value);
       const err = !label ? 'Bitte ein Stichwort eingeben.' : (h == null || !isFinite(h) || h <= 0) ? 'Bitte die Dauer in Stunden angeben (z. B. 1,5).' : '';
       if (err) { row.querySelector('.eErr').textContent = err; return; }
-      Object.assign(p, { label, hours: h, desc: row.querySelector('.eDesc').value.trim(), kind: row.querySelector('input[name=eKind]:checked').value });
+      Object.assign(p, { label, hours: h, desc: row.querySelector('.eDesc').value.trim(), kind: row.querySelector('input[name=eKind]:checked').value, values: readChecks(row, 'eVal') });
       editId = null;
     }
     else if (act === 'move' || act === 'drop') {
@@ -555,7 +679,7 @@
       if (complete()) p.keep = true;
       p.status = act;
       W.tracking = W.tracking.filter(t => !(t.id === p.id && t.week === c.start));
-      W.tracking.push({ id: p.id, label: p.label, hours: p.hours, desc: p.desc, kind: p.kind, shifts: p.shifts, result: act, week: c.start });
+      W.tracking.push({ ...base(p), result: act, week: c.start });
     }
     else if (act === 'reopen') {
       W.tracking = W.tracking.filter(t => !(t.id === p.id && t.week === c.start));
@@ -604,7 +728,7 @@
         doc.setFont('helvetica', 'bold'); doc.text(r.letter, M + 3, y + 3.8);
         font(p, true); doc.text(fit(p.label, 62), M + 9, y + 3.8);
         font(p); doc.setFontSize(8.5); doc.setTextColor(93, 104, 119);
-        doc.text(fit(p.desc || '', 120), M + 74, y + 3.8);
+        doc.text(fit([p.desc, p.values.map(k => VNAME[k]).join('/')].filter(Boolean).join('  ·  '), 120), M + 74, y + 3.8);
         doc.setFont('helvetica', 'normal');
         doc.text(p.kind === 'private' ? 'privat' : 'beruflich', M + 200, y + 3.8);
         doc.text(p.shifts ? `${p.shifts}x verschoben` : '', M + 220, y + 3.8);
@@ -651,6 +775,31 @@
       doc.text(b.t, ax + b.x + 1.5, ay + b.y + 3.5);
     });
 
+    // Wertbereiche: Gewicht und Zeitanteil
+    const wv = weights(), B = valueBalance(open, wv);
+    if (wv || B.tot) {
+      P.header('Wertbereiche: Gewichtung und geplante Zeit', info, foot);
+      let yy = 32;
+      const cx = { n: M, w: M + 50, h: M + 75, s: M + 102, bar: M + 115 }, bw = PW - M - cx.bar;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(93, 104, 119);
+      doc.text('Wertbereich', cx.n, yy); doc.text('Gewicht', cx.w + 18, yy, { align: 'right' });
+      doc.text('Zeit', cx.h + 18, yy, { align: 'right' }); doc.text('Zeitanteil', cx.s + 10, yy, { align: 'right' });
+      doc.text(T('Gewicht (blau) · Zeitanteil (grün), Skala 0–100 %'), cx.bar, yy);
+      yy += 4;
+      B.rows.slice().sort((x, y2) => (y2.w || 0) - (x.w || 0) || y2.share - x.share).forEach(r => {
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(28, 36, 48);
+        doc.text(r.n, cx.n, yy + 6);
+        doc.text(r.w == null ? '-' : pctTxt(r.w), cx.w + 18, yy + 6, { align: 'right' });
+        doc.text(T(fmtH(r.h)), cx.h + 18, yy + 6, { align: 'right' });
+        doc.text(B.tot ? pctTxt(r.share) : '-', cx.s + 10, yy + 6, { align: 'right' });
+        doc.setFillColor(90, 128, 239); if (r.w) doc.rect(cx.bar, yy + 2, bw * r.w / 100, 2.6, 'F');
+        doc.setFillColor(76, 177, 97); if (r.share) doc.rect(cx.bar, yy + 5.2, bw * r.share / 100, 2.6, 'F');
+        yy += 10;
+      });
+      doc.setFontSize(8.5); doc.setTextColor(93, 104, 119);
+      doc.text(T(`Stunden eines Projekts werden gleichmäßig auf seine Wertbereiche verteilt.${B.none ? ` ${fmtH(B.none)} ohne Wertbereich sind nicht enthalten.` : ''}${wv ? ' Gewicht aus dem Paarvergleich der Wertbereiche (Skalenwert + 1, normiert auf 100 %).' : ''}`), M, yy + 6, { maxWidth: PW - 2 * M });
+    }
+
     // Danach die Details beider Durchläufe
     a.pdfAnalysisPages(P, R.imp, info, 'Wichtigkeit: ');
     a.pdfAnalysisPages(P, R.urg, info, 'Dringlichkeit: ');
@@ -671,7 +820,7 @@
       if (!confirm('Aktuelle Wochenplanung verwerfen?\n\nÜbernommene Projekte der Vorwoche gehen zurück in die Liste der nicht erledigten Projekte; die Tracking-Liste bleibt erhalten.')) return false;
       if (W.cur) {
         W.cur.projects.filter(p => p.carried && p.status !== 'dropped').forEach(p => {
-          W.backlog.push({ id: p.id, label: p.label, hours: p.hours, desc: p.desc, kind: p.kind, shifts: p.shifts });
+          W.backlog.push(base(p));
         });
         W.tracking = W.tracking.filter(t => t.week !== W.cur.start);
       }
