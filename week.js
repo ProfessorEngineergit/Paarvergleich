@@ -54,7 +54,7 @@
 
   // ---------- Daten ----------
   const blank = () => ({ cur: null, backlog: [], tracking: [], values: { answers: [] } });
-  let W = load();
+  let W = null; // wird unten geladen, sobald alle Hilfsfunktionen definiert sind
   let editId = null;
 
   function load() {
@@ -134,6 +134,10 @@
     const h = parseFloat(t);
     return isFinite(h) && h >= 0 && h <= 168 ? Math.round(h * 10) / 10 : NaN;
   }
+
+  // Erst hier laden: load() braucht die oben als const definierten Helfer (Datum, Text).
+  // Vorher aufgerufen, scheiterte es still und die gespeicherte Planung ging bei jedem Neuladen verloren.
+  W = load();
 
   // ---------- Woche ----------
   function cur() {
@@ -367,7 +371,7 @@
   // ---------- Schritt W2: Projekte erfassen ----------
   function renderPlan() {
     const c = cur();
-    $('wStart').value = c.start;
+    renderWeekPick();
     renderValues();
     if (!$('aValues').children.length) $('aValues').innerHTML = valueChecks('aVal', []);
     if (document.activeElement !== $('wHours')) $('wHours').value = c.hours == null ? '' : fmt(c.hours);
@@ -419,7 +423,68 @@
   });
   // Nur das Feld neu formatieren; ein komplettes Neuzeichnen würde den gerade angeklickten Button ersetzen.
   $('wHours').addEventListener('blur', e => { const h = cur().hours; e.target.value = h == null ? '' : fmt(h); });
-  $('wStart').addEventListener('change', e => { if (isIsoDate(e.target.value)) { cur().start = e.target.value; save(); } });
+  // ---------- Wochenpicker ----------
+  // Eigener Picker statt <input type="date"/"week">: Der Datums-Picker meldet die Auswahl je nach
+  // Browser erst verspätet oder gar nicht, und type="week" gibt es in Safari und Firefox nicht.
+  // Ein Klick wählt sofort die ganze Woche (Montag bis Sonntag).
+  const MONTHS = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+  let pickMonth = null; // erster Tag des angezeigten Monats
+  function setStart(mon) {
+    cur().start = iso(mondayOf(mon)); save();
+    renderWeekPick();
+    $('wTrack2').innerHTML = trackingHtml();
+  }
+  function shiftDays(s, n) { const d = parseIso(s); d.setDate(d.getDate() + n); return d; }
+  function renderWeekPick() {
+    const start = mondayIso(cur().start);
+    const thisMon = iso(mondayOf(new Date()));
+    $('wPickBtn').innerHTML = `<b>${weekLabel(start).replace(' · ', '</b> · ')}${start === thisMon ? ' <span class="wp-tag">diese Woche</span>' : start === iso(shiftDays(thisMon, 7)) ? ' <span class="wp-tag">nächste Woche</span>' : ''}`;
+    if (!$('wPop').hidden) renderWeekPop();
+  }
+  function renderWeekPop() {
+    const start = mondayIso(cur().start), thisMon = iso(mondayOf(new Date()));
+    const y = pickMonth.getFullYear(), m = pickMonth.getMonth();
+    const last = new Date(y, m + 1, 0);
+    let rows = '';
+    for (let d = mondayOf(pickMonth); d <= last; d.setDate(d.getDate() + 7)) {
+      const mon = iso(d), days = [];
+      for (let k = 0; k < 7; k++) { const x = new Date(d); x.setDate(x.getDate() + k); days.push(x); }
+      rows += `<button type="button" class="wp-row${mon === start ? ' sel' : ''}${mon === thisMon ? ' now' : ''}" data-mon="${mon}" aria-pressed="${mon === start}" aria-label="${weekLabel(mon)}">` +
+        `<span class="wp-kw">${isoWeek(d)}</span>` + days.map(x => `<span class="${x.getMonth() === m ? '' : 'out'}">${x.getDate()}</span>`).join('') + '</button>';
+    }
+    $('wPop').innerHTML = `<div class="wp-head"><button type="button" class="wp-nav" data-mm="-1" aria-label="Vorheriger Monat">‹</button>
+        <b>${MONTHS[m]} ${y}</b><button type="button" class="wp-nav" data-mm="1" aria-label="Nächster Monat">›</button></div>
+      <div class="wp-row wp-dow" aria-hidden="true"><span class="wp-kw">KW</span><span>Mo</span><span>Di</span><span>Mi</span><span>Do</span><span>Fr</span><span>Sa</span><span>So</span></div>
+      ${rows}
+      <div class="wp-quick"><button type="button" class="mini" data-quick="0">Diese Woche</button><button type="button" class="mini" data-quick="7">Nächste Woche</button></div>`;
+  }
+  function openPop(open) {
+    const pop = $('wPop');
+    if (open) {
+      const s0 = parseIso(mondayIso(cur().start));
+      pickMonth = new Date(s0.getFullYear(), s0.getMonth(), 1);
+      pop.hidden = false; renderWeekPop();
+      (pop.querySelector('.wp-row.sel') || pop.querySelector('.wp-row:not(.wp-dow)')).focus();
+    } else pop.hidden = true;
+    $('wPickBtn').setAttribute('aria-expanded', String(!!open));
+  }
+  $('wPickBtn').addEventListener('click', () => openPop($('wPop').hidden));
+  $('wPrev').addEventListener('click', () => setStart(shiftDays(mondayIso(cur().start), -7)));
+  $('wNext').addEventListener('click', () => setStart(shiftDays(mondayIso(cur().start), 7)));
+  $('wPop').addEventListener('click', e => {
+    e.stopPropagation();
+    const mm = e.target.closest('[data-mm]'), row = e.target.closest('.wp-row[data-mon]'), q = e.target.closest('[data-quick]');
+    if (mm) { pickMonth = new Date(pickMonth.getFullYear(), pickMonth.getMonth() + +mm.dataset.mm, 1); renderWeekPop(); }
+    else if (row) { setStart(parseIso(row.dataset.mon)); openPop(false); $('wPickBtn').focus(); }
+    else if (q) { setStart(shiftDays(iso(mondayOf(new Date())), +q.dataset.quick)); openPop(false); $('wPickBtn').focus(); }
+  });
+  document.addEventListener('click', e => { if (!$('wPop').hidden && !e.target.closest('#wPick')) openPop(false); });
+  document.addEventListener('keydown', e => {
+    if ($('wPop').hidden) return;
+    if (e.key === 'Escape') { openPop(false); $('wPickBtn').focus(); return; }
+    const rows = [...$('wPop').querySelectorAll('.wp-row[data-mon]')], i = rows.indexOf(document.activeElement);
+    if (i >= 0 && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) { e.preventDefault(); (rows[i + (e.key === 'ArrowDown' ? 1 : -1)] || rows[i]).focus(); }
+  });
   $('wBack1').addEventListener('click', () => App().go(1));
   $('wToCompare').addEventListener('click', () => {
     if (!cur().hours && !confirm('Es ist noch keine verfügbare Gesamtzeit eingetragen. Trotzdem fortfahren?')) return;
