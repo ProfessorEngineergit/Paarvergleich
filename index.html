@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Paarvergleich Priorisierung – tillnovotny.de</title>
-<meta name="description" content="Bis zu 20 Items per paarweisem Vergleich priorisieren – einzeln oder in der Gruppe, mit möglichst wenigen Fragen und PDF-Auswertung.">
+<title>Priorisierung – tillnovotny.de</title>
+<meta name="description" content="Bis zu 20 Items per paarweisem Vergleich priorisieren – einzeln, in der Gruppe oder als Wochenplanung, mit möglichst wenigen Fragen und PDF-Auswertung.">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -14,13 +14,14 @@
       <a class="wordmark" href="https://tillnovotny.de" target="_blank" rel="noopener">Till Novotny</a>
       <a class="brand" href="https://tillnovotny.de" target="_blank" rel="noopener">Zur Website ↗</a>
     </div>
-    <h1>Paarvergleich</h1>
+    <h1>Priorisierung</h1>
     <p class="sub">Bis zu 20 Items durch paarweise Vergleiche priorisieren – mit möglichst wenigen Fragen.</p>
     <ol class="steps" id="steps">
       <li data-step="1">Modus</li>
       <li data-step="2">Items</li>
       <li data-step="3">Vergleiche</li>
       <li data-step="4">Ergebnis</li>
+      <li data-step="5" hidden>Projektstand</li>
     </ol>
   </div>
 </header>
@@ -31,9 +32,13 @@
   <section id="step1" class="card step" hidden>
     <h2>Wer priorisiert?</h2>
     <p class="muted">Geht es um die Priorisierung durch eine einzelne Person oder durch eine Gruppe?</p>
-    <div class="choice">
+    <div class="choice choice3">
       <label class="opt"><input type="radio" name="mode" value="single"> <span><strong>Einzelperson</strong><br><small>Pro Vergleich wird ein Item gewählt. Es bekommt einen Punkt.</small></span></label>
       <label class="opt"><input type="radio" name="mode" value="group"> <span><strong>Gruppe</strong><br><small>Pro Vergleich wird erfasst, wie viele Personen sich für welches Item entscheiden. Jede Stimme ist ein Punkt.</small></span></label>
+      <label class="opt"><input type="radio" name="mode" value="week"> <span><strong>Wochenplanung</strong><br><small>Berufliche und private Projekte der Woche nach Wichtigkeit und Dringlichkeit priorisieren und während der Woche nachhalten.</small></span></label>
+    </div>
+    <div id="weekOpts" hidden>
+      <p class="muted small">Projekte sind alles, was länger als eine halbe Stunde dauert und selbst disponiert wird. Die Projekte werden in zwei Durchläufen abgestuft verglichen: zuerst nach Wichtigkeit, dann nach Dringlichkeit. Nicht erledigte Projekte und die Tracking-Liste bleiben von Woche zu Woche im Browser gespeichert.</p>
     </div>
     <div id="singleOpts" hidden>
       <label class="check"><input type="checkbox" id="graded"> <span><strong>Abgestuft priorisieren</strong>: Bei jedem Vergleich zusätzlich wählen, wie deutlich der Unterschied ist („viel höher“, „höher“, „etwas höher“). Die Zahl der Fragen bleibt gleich, die Skala zeigt aber realistischere Abstände.</span></label>
@@ -45,7 +50,7 @@
       <p class="muted small">Die Zahl dient dem Vollständigkeitscheck: Bei jedem Vergleich müssen sich die Stimmen für beide Items zur Gesamtzahl addieren.</p>
       <label class="check"><input type="checkbox" id="fastMode"> <span><strong>Schnellmodus</strong>: Mehrheiten transitiv übertragen. Das spart viele Fragen. Nicht gefragte Stimmenzahlen werden dann geschätzt und im Ergebnis markiert.</span></label>
     </div>
-    <label class="field">Titel der Priorisierung (optional)
+    <label class="field" id="titleField">Titel der Priorisierung (optional)
       <input type="text" id="title" maxlength="120" placeholder="z. B. Prioritäten Q1">
     </label>
     <div class="actions">
@@ -100,12 +105,144 @@
     <div class="card">
       <h3>Prioritätenskala</h3>
       <p class="muted small" id="scaleNote">Position = Punktzahl. So sind die Abstände zwischen den Items direkt zu sehen.</p>
-      <div id="scale" class="scroll"></div>
+      <div id="scale" class="scroll scalebox"></div>
     </div>
     <div class="card">
       <h3>Bewertungsmatrix</h3>
       <p class="muted small" id="matrixLegend"></p>
       <div class="scroll"><table id="matrix" class="matrix"></table></div>
+    </div>
+  </section>
+
+  <!-- ===== Wochenplanung ===== -->
+  <!-- W2: Projekte erfassen -->
+  <section id="wstep2" class="card step" hidden>
+    <h2>Aktuelle Wochenplanung <span class="h-sub">(berufliche und private Projekte)</span></h2>
+    <p class="muted">Projekte sind alles, was länger als eine halbe Stunde dauert und selbst disponiert wird.</p>
+    <div class="wtop">
+      <label class="field">Woche ab
+        <input type="date" id="wStart">
+      </label>
+      <label class="field">Diese Woche für Projekte verfügbare Gesamtzeit (Stunden)
+        <input type="text" id="wHours" inputmode="decimal" placeholder="z. B. 15,0">
+      </label>
+    </div>
+    <div id="wTotal" class="wtotal"></div>
+
+    <h3>Wertbereiche</h3>
+    <div id="wValues" class="wvalues"></div>
+
+    <h3>Nicht erledigte Projekte der letzten Woche</h3>
+    <div id="wCarried"></div>
+
+    <h3>Neue Projekte</h3>
+    <div class="wadd">
+      <input type="text" id="aLabel" maxlength="60" placeholder="Stichwort" aria-label="Stichwort">
+      <input type="text" id="aHours" inputmode="decimal" placeholder="Dauer (h)" aria-label="Dauer in Stunden">
+      <input type="text" id="aDesc" maxlength="200" placeholder="Kurze Beschreibung (optional)" aria-label="Kurze Beschreibung">
+      <span class="kind" role="radiogroup" aria-label="Art">
+        <label><input type="radio" name="aKind" value="work" checked> beruflich</label>
+        <label><input type="radio" name="aKind" value="private"> <i>privat</i></label>
+      </span>
+      <button class="primary" id="aAdd">Hinzufügen</button>
+    </div>
+    <div class="avals"><span class="muted small">Zahlt ein auf:</span> <span id="aValues"></span></div>
+    <p class="err left" id="aErr"></p>
+    <div id="wList"></div>
+    <div id="wParked"></div>
+    <p class="muted small" id="wInfo"></p>
+    <details class="wtrack-d">
+      <summary>Tracking-Liste der letzten vier Wochen</summary>
+      <div id="wTrack2"></div>
+    </details>
+    <div class="actions">
+      <button id="wBack1">Zurück</button>
+      <button class="primary" id="wToCompare">Vergleiche starten</button>
+    </div>
+  </section>
+
+  <!-- W3: Vergleiche -->
+  <section id="wstep3" class="card step" hidden>
+    <div class="progress"><div id="wProgBar"></div></div>
+    <p class="muted small" id="wProgText"></p>
+    <div id="wQuestion"></div>
+    <div class="actions">
+      <button id="wUndo">Letzte Antwort zurücknehmen</button>
+      <button id="wBack2">Projekte bearbeiten</button>
+    </div>
+  </section>
+
+  <!-- W4: Ergebnis -->
+  <section id="wstep4" class="step" hidden>
+    <div class="card">
+      <div class="result-head">
+        <div>
+          <h2>Aktuelle Wochenplanung <span class="h-sub">(berufliche und private Projekte)</span></h2>
+          <p class="muted small" id="wResSub"></p>
+        </div>
+        <div class="btns">
+          <button class="primary" id="wPdf">PDF herunterladen</button>
+          <button id="wEdit">Projekte bearbeiten</button>
+          <button id="wBack3">Zu den Vergleichen</button>
+        </div>
+      </div>
+      <div id="wKpis" class="checkbox"></div>
+    </div>
+    <div class="card">
+      <h3>Projektliste nach Priorität</h3>
+      <p class="muted small">Aufteilung je Dimension am Median. Das „i“ zeigt Hinweise zur weiteren Arbeit mit den Projekten des Bereichs.</p>
+      <div id="wGroups"></div>
+      <div id="wParked4"></div>
+    </div>
+    <div class="card">
+      <h3>Vier-Felder-Matrix</h3>
+      <p class="muted small">Position = Ergebnis der Vergleiche, die Mittellinien liegen am Median. Stichwort anklicken oder darauf zeigen, um die Beschreibung zu sehen.</p>
+      <div id="wMatrix" class="qm"></div>
+    </div>
+    <div class="card">
+      <h3>Wertbereiche: Gewichtung und geplante Zeit</h3>
+      <p class="muted small">Passt die Verteilung der geplanten Zeit zu dem, was mir wichtig ist?</p>
+      <div id="wBalance"></div>
+    </div>
+    <div class="card">
+      <h3>Details der Vergleiche</h3>
+      <details class="wdet"><summary>Wichtigkeit: Rangliste, Prioritätenskala, Bewertungsmatrix</summary><div id="wDetImp"></div></details>
+      <details class="wdet"><summary>Dringlichkeit: Rangliste, Prioritätenskala, Bewertungsmatrix</summary><div id="wDetUrg"></div></details>
+    </div>
+    <div class="card center">
+      <p class="muted small">Während der Woche den aktuellen Projektstand erfassen.</p>
+      <button class="primary" id="wToStatus">Zum Projektstand</button>
+    </div>
+  </section>
+
+  <!-- W5: Projektstand während der Woche -->
+  <section id="wstep5" class="step" hidden>
+    <div class="card">
+      <div class="result-head">
+        <div>
+          <h2>Aktueller Projektstand</h2>
+          <p class="muted small" id="wStSub"></p>
+        </div>
+        <div class="btns">
+          <button id="wToResult">Zur Auswertung</button>
+          <button id="wAddMore">Projekte ergänzen</button>
+        </div>
+      </div>
+      <div id="wStKpis" class="checkbox"></div>
+    </div>
+    <div class="card">
+      <h3>Projektliste</h3>
+      <div id="wStGroups"></div>
+      <div id="wStDone"></div>
+    </div>
+    <div class="card">
+      <h3>Tracking-Liste der letzten vier Wochen</h3>
+      <div id="wTrack"></div>
+    </div>
+    <div class="card">
+      <h3>Woche abschließen</h3>
+      <p class="muted small">Noch offene und verschobene Projekte erscheinen bei der nächsten Wochenplanung unter den nicht erledigten Projekten; ihre Verschiebungen zählen dabei um eins hoch.</p>
+      <button class="primary" id="wNewWeek">Neue Woche planen</button>
     </div>
   </section>
 
@@ -119,6 +256,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="engine.js"></script>
+<script src="week.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
