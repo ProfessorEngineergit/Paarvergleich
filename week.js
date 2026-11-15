@@ -814,6 +814,17 @@
       else if (step === 4) renderResult();
       else if (step === 5) renderStatus();
     },
+    // Für die Schritt-Tabs: null = erreichbar, sonst der Hinweis, was zuerst fehlt.
+    block(n) {
+      if (n === 2) return null;
+      const k = active().length;
+      if (k < 2) return 'Bitte zuerst unter „Projekte“ mindestens zwei Projekte erfassen.';
+      if (k > MAXP) return `Bitte zuerst unter „Projekte“ auf höchstens ${MAXP} Projekte reduzieren.`;
+      if (n === 3) return null;
+      if (!analyses().complete) return 'Bitte zuerst alle Vergleiche beantworten (Wichtigkeit und Dringlichkeit).';
+      return null;
+    },
+    complete: () => analyses().complete,
     data: () => W,
     setData(o) { W = sanitize(o); editId = null; save(); },
     reset() {
