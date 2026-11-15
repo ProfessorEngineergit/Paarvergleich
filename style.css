@@ -196,7 +196,7 @@ table { border-collapse: collapse; font-size: .875rem; }
 .h-sub { font-weight: 400; color: var(--muted); font-size: .7em; }
 h3 { margin: 18px 0 8px; }
 h4 { margin: 14px 0 6px; font-size: .95rem; }
-.wtop { display: grid; grid-template-columns: 200px 1fr; gap: 0 16px; }
+.wtop { display: grid; grid-template-columns: auto 1fr; gap: 0 24px; align-items: start; }
 @media (max-width: 600px) { .wtop { grid-template-columns: 1fr; } }
 .wtop .field input { max-width: 240px; }
 .wtotal { margin: 4px 0 8px; }
@@ -495,3 +495,35 @@ button.dl.fire::after { animation: drop .6s var(--ease); }
 .toast.out { animation: toastOut .3s ease both; }
 @keyframes toastIn { from { opacity: 0; transform: translateY(-6px) scale(.96); } to { opacity: 1; transform: none; } }
 @keyframes toastOut { to { opacity: 0; transform: translateY(-4px); } }
+
+/* --- Wochenpicker --- */
+.wpick { position: relative; display: inline-flex; align-items: stretch; gap: 4px; margin-top: 4px; font-weight: 400; }
+.wp-btn, .wp-nav { text-transform: none; letter-spacing: 0; font-weight: 400; font-size: .92rem; border: 1px solid var(--edge); background: var(--glass-hi); color: var(--text); }
+.wp-btn { padding: 8px 16px; border-radius: 12px; white-space: nowrap; }
+.wp-btn b { font-weight: 600; }
+.wp-nav { width: 38px; padding: 0; border-radius: 12px; font-size: 1.2rem; line-height: 1; }
+.wp-btn:hover, .wp-nav:hover { border-color: var(--accent); color: var(--text); }
+.wp-tag { font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; color: var(--pink); margin-left: 6px; }
+.wp-pop {
+  position: absolute; top: calc(100% + 8px); left: 0; z-index: 30; width: 320px; padding: 12px;
+  border-radius: 18px; border: 1px solid var(--edge);
+  background: var(--sheen), var(--glass-hi); -webkit-backdrop-filter: blur(22px) saturate(170%); backdrop-filter: blur(22px) saturate(170%);
+  box-shadow: var(--gloss), var(--lift); animation: toastIn .3s cubic-bezier(.34, 1.56, .64, 1) both;
+}
+.wp-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.wp-head .wp-nav { width: 32px; height: 32px; }
+.wp-row { display: grid; grid-template-columns: 34px repeat(7, 1fr); width: 100%; padding: 6px 4px; margin: 2px 0; border: 1px solid transparent; border-radius: 10px;
+  background: none; color: var(--text); font-size: .88rem; font-weight: 400; letter-spacing: 0; text-transform: none; text-align: center; font-variant-numeric: tabular-nums; }
+.wp-row:hover, .wp-row:focus-visible { background: color-mix(in srgb, var(--accent) 14%, transparent); border-color: transparent; color: var(--text); outline: none; }
+.wp-row.now { border-color: color-mix(in srgb, var(--pink) 45%, transparent); }
+.wp-row.sel { background: var(--btn-bg); color: var(--btn-fg); }
+.wp-row.sel .out, .wp-row.sel .wp-kw { color: color-mix(in srgb, var(--btn-fg) 60%, transparent); }
+.wp-row .out { color: var(--muted); opacity: .6; }
+.wp-kw { color: var(--muted); font-size: .75rem; align-self: center; }
+.wp-dow { font-size: .72rem; color: var(--muted); letter-spacing: .04em; pointer-events: none; padding-top: 0; padding-bottom: 2px; }
+.wp-quick { display: flex; gap: 6px; justify-content: flex-end; margin-top: 8px; }
+@media (max-width: 600px) { .wp-pop { width: min(320px, calc(100vw - 48px)); } .wp-btn { white-space: normal; text-align: left; } }
+
+/* Schwebende Elemente liegen in Glasflächen; dort greift die Hintergrund-Unschärfe nicht
+   (verschachtelt), daher nahezu deckender Hintergrund, damit nichts durchscheint. */
+.wp-pop, .toast, .qtip { background: var(--sheen), color-mix(in srgb, var(--surface) 99%, transparent); }

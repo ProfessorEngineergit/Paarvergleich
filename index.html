@@ -122,9 +122,14 @@
     <h2>Aktuelle Wochenplanung <span class="h-sub">(berufliche und private Projekte)</span></h2>
     <p class="muted">Projekte sind alles, was länger als eine halbe Stunde dauert und selbst disponiert wird.</p>
     <div class="wtop">
-      <label class="field">Woche ab
-        <input type="date" id="wStart">
-      </label>
+      <div class="field">Woche
+        <div class="wpick" id="wPick">
+          <button type="button" class="wp-nav" id="wPrev" aria-label="Vorherige Woche">‹</button>
+          <button type="button" class="wp-btn" id="wPickBtn" aria-haspopup="dialog" aria-expanded="false" aria-controls="wPop"></button>
+          <button type="button" class="wp-nav" id="wNext" aria-label="Nächste Woche">›</button>
+          <div class="wp-pop" id="wPop" role="dialog" aria-label="Woche wählen" hidden></div>
+        </div>
+      </div>
       <label class="field">Diese Woche für Projekte verfügbare Gesamtzeit (Stunden)
         <input type="text" id="wHours" inputmode="decimal" placeholder="z. B. 15,0">
       </label>
