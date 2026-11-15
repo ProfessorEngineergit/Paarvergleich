@@ -5,7 +5,7 @@
   const KEY = 'paarvergleich-v1';
   const $ = id => document.getElementById(id);
 
-  const fresh = () => ({ step: 1, mode: null, base: null, groupSize: 5, fast: false, graded: true, title: '', labels: Array(20).fill(''), answers: [] });
+  const fresh = () => ({ step: 1, mode: null, groupSize: 5, fast: false, graded: true, title: '', labels: Array(20).fill(''), answers: [] });
   let S = load() || fresh();
 
   function load() {
@@ -21,11 +21,8 @@
   function sanitize(o) {
     const s = fresh();
     if (!o || typeof o !== 'object') return s;
-    s.step = [1, 2, 3, 4, 5].includes(o.step) ? o.step : 1;
-    s.mode = ['single', 'group', 'week'].includes(o.mode) ? o.mode : null;
-    // base = zuletzt gewählter Modus für den Paarvergleich (Einzelperson/Gruppe); die Wochenplanung hat eigene Daten.
-    s.base = o.base === 'single' || o.base === 'group' ? o.base : (s.mode === 'week' ? null : s.mode);
-    if (s.step === 5 && s.mode !== 'week') s.step = 4;
+    s.step = [1, 2, 3, 4].includes(o.step) ? o.step : 1;
+    s.mode = o.mode === 'single' || o.mode === 'group' ? o.mode : null;
     s.groupSize = Math.max(2, Math.min(500, parseInt(o.groupSize, 10) || 5));
     s.fast = !!o.fast;
     // Ältere Sitzungen ohne Stufen bleiben unverändert, sofern schon Antworten vorliegen.
@@ -48,21 +45,14 @@
 
   function go(step) { S.step = step; save(); render(); window.scrollTo(0, 0); }
 
-  const STEP_NAMES = { std: ['Modus', 'Items', 'Vergleiche', 'Ergebnis'], week: ['Modus', 'Projekte', 'Vergleiche', 'Ergebnis', 'Projektstand'] };
   function render() {
-    const wk = S.mode === 'week';
-    const sid = (wk && S.step > 1 ? 'wstep' : 'step') + S.step;
-    document.querySelectorAll('.step').forEach(el => { el.hidden = el.id !== sid; });
-    const names = STEP_NAMES[wk ? 'week' : 'std'];
+    document.querySelectorAll('.step').forEach(el => { el.hidden = el.id !== 'step' + S.step; });
     document.querySelectorAll('#steps li').forEach(li => {
       const n = +li.dataset.step;
-      li.hidden = n > names.length;
-      li.textContent = names[n - 1] || '';
       li.classList.toggle('active', n === S.step);
       li.classList.toggle('done', n < S.step);
     });
-    if (S.step === 1) { renderStep1(); return; }
-    if (wk) { window.PVWeek.render(S.step); return; }
+    if (S.step === 1) renderStep1();
     if (S.step === 2) renderStep2();
     if (S.step === 3) renderStep3();
     if (S.step === 4) renderStep4();
@@ -73,9 +63,6 @@
     document.querySelectorAll('input[name=mode]').forEach(r => { r.checked = r.value === S.mode; });
     $('groupOpts').hidden = S.mode !== 'group';
     $('singleOpts').hidden = S.mode !== 'single';
-    $('weekOpts').hidden = S.mode !== 'week';
-    $('titleField').hidden = S.mode === 'week';
-    $('toStep2').textContent = S.mode === 'week' ? 'Weiter zu den Projekten' : 'Weiter zu den Items';
     $('graded').checked = S.graded;
     $('groupSize').value = S.groupSize;
     $('fastMode').checked = S.fast;
@@ -83,11 +70,10 @@
     $('toStep2').disabled = !S.mode;
   }
   function settingsChange(apply) {
-    // Die Wochenplanung hat eigene Daten: Ein Wechsel dorthin (und zurück) verwirft keine Antworten.
-    const before = JSON.stringify([S.base, S.groupSize, S.fast, S.graded]);
-    const prev = { mode: S.mode, base: S.base, groupSize: S.groupSize, fast: S.fast, graded: S.graded };
+    const before = JSON.stringify([S.mode, S.groupSize, S.fast, S.graded]);
+    const prev = { mode: S.mode, groupSize: S.groupSize, fast: S.fast, graded: S.graded };
     apply();
-    const changed = before !== JSON.stringify([S.base, S.groupSize, S.fast, S.graded]);
+    const changed = before !== JSON.stringify([S.mode, S.groupSize, S.fast, S.graded]);
     if (changed && S.answers.length) {
       if (!confirm('Die bisherigen Antworten passen nicht mehr zu dieser Einstellung und werden verworfen. Fortfahren?')) {
         Object.assign(S, prev); renderStep1(); return;
@@ -96,7 +82,7 @@
     }
     save(); renderStep1();
   }
-  document.querySelectorAll('input[name=mode]').forEach(r => r.addEventListener('change', () => settingsChange(() => { S.mode = r.value; if (r.value !== 'week') S.base = r.value; })));
+  document.querySelectorAll('input[name=mode]').forEach(r => r.addEventListener('change', () => settingsChange(() => { S.mode = r.value; })));
   $('groupSize').addEventListener('change', e => settingsChange(() => { S.groupSize = Math.max(2, Math.min(500, parseInt(e.target.value, 10) || 2)); }));
   $('fastMode').addEventListener('change', e => settingsChange(() => { S.fast = e.target.checked; }));
   $('graded').addEventListener('change', e => settingsChange(() => { S.graded = e.target.checked; }));
@@ -240,38 +226,12 @@
   $('back2').addEventListener('click', () => go(2));
 
   // ---------- Schritt 4 ----------
-  // Bausteine der Ergebnisdarstellung; werden auch von der Wochenplanung genutzt.
-  function rankHtml(A, rows) {
-    const maxPts = A.maxPts, ptsName = A.graded ? 'Skalenwert' : 'Punkte';
-    return `<thead><tr><th>Rang</th><th>Item</th><th>Stichwort</th><th class="num">${ptsName}</th><th class="num">Anteil</th><th class="num">Abstand</th><th></th></tr></thead><tbody>` +
-      rows.map(r => `<tr><td>${r.rank}.</td><td><b>${r.letter}</b></td><td class="kw">${esc(r.label)}</td><td class="num">${fmt(r.points)}</td><td class="num">${pct(r.points, maxPts)}</td><td class="num">${r.gap === null ? '–' : fmt(r.gap)}</td><td class="barcell"><div class="bar" style="width:${maxPts ? 100 * r.points / maxPts : 0}%"></div></td></tr>`).join('') + '</tbody>';
-  }
-  function legendHtml(A) {
-    return (A.graded
-      ? 'Zelle = Abstand des Zeilen-Items zum Spalten-Item in Stufen (1 = etwas höher, 2 = höher, 3 = viel höher; Minus = niedriger). Gefragte Paare zeigen die gegebene Stufe, errechnete Paare die Differenz der Skalenwerte. Skalenwert: niedrigstes Item = 0.'
-      : `Zelle = ${A.N === 1 ? 'Punkt' : 'Stimmen'} des Zeilen-Items im Vergleich mit dem Spalten-Item; Zeilensumme = Priorität.`) +
-      `<span class="swatch"></span>gefragt<span class="swatch" style="background:var(--inferred)"></span>errechnet` +
-      (A.counts.estimated ? `<span class="swatch" style="background:var(--estimated)"></span>geschätzt (~)` : '');
-  }
-  function matrixHtml(A) {
-    let h = '<thead><tr><th></th>' + A.items.map(o => `<th>${o.letter}</th>`).join('') + `<th>${A.graded ? 'Skalenwert' : 'Summe'}</th></tr></thead><tbody>`;
-    A.items.forEach((o, i) => {
-      h += `<tr><th class="rowh" title="${esc(o.label)}">${o.letter} · ${esc(o.label)}</th>`;
-      A.items.forEach((_, j) => {
-        if (i === j) { h += '<td class="diag"></td>'; return; }
-        const st = A.status[i][j];
-        h += `<td class="${st}">${st === 'estimated' ? '~' : ''}${A.graded ? sgn(A.X[i][j]) : A.X[i][j]}</td>`;
-      });
-      h += `<td class="sum">${fmt(A.points[i])}</td></tr>`;
-    });
-    return h + '</tbody>';
-  }
-  const scaleNote = A => `Position = ${A.graded ? 'Skalenwert' : 'Punktzahl'}. So sind die Abstände zwischen den Items direkt zu sehen.`;
-
   function renderStep4() {
     const A = analysis();
     if (!A.complete) { go(3); return; }
     const rows = PV.ranking(A);
+    const maxPts = A.maxPts, axisMax = Math.max(1, Math.ceil(maxPts));
+    const ptsName = A.graded ? 'Skalenwert' : 'Punkte';
     $('resTitle').textContent = S.title.trim() || 'Ergebnis';
 
     const c = A.counts;
@@ -289,11 +249,28 @@
         : `Vollständigkeitscheck nicht bestanden: ${c.open} Paare offen.`}
         ${c.asked < c.pairs ? ` Ersparnis: ${c.pairs - c.asked} von ${c.pairs} Fragen (${Math.round(100 * (c.pairs - c.asked) / c.pairs)} %).` : ''}</div>`;
 
-    $('rankTable').innerHTML = rankHtml(A, rows);
-    $('matrixLegend').innerHTML = legendHtml(A);
-    $('matrix').innerHTML = matrixHtml(A);
-    $('scaleNote').textContent = scaleNote(A);
-    $('scale').innerHTML = scaleSvg(rows, Math.max(1, Math.ceil(A.maxPts)));
+    $('rankTable').innerHTML = `<thead><tr><th>Rang</th><th>Item</th><th>Stichwort</th><th class="num">${ptsName}</th><th class="num">Anteil</th><th class="num">Abstand</th><th></th></tr></thead><tbody>` +
+      rows.map(r => `<tr><td>${r.rank}.</td><td><b>${r.letter}</b></td><td class="kw">${esc(r.label)}</td><td class="num">${fmt(r.points)}</td><td class="num">${pct(r.points, maxPts)}</td><td class="num">${r.gap === null ? '–' : fmt(r.gap)}</td><td class="barcell"><div class="bar" style="width:${maxPts ? 100 * r.points / maxPts : 0}%"></div></td></tr>`).join('') + '</tbody>';
+
+    $('matrixLegend').innerHTML = (A.graded
+      ? 'Zelle = Abstand des Zeilen-Items zum Spalten-Item in Stufen (1 = etwas höher, 2 = höher, 3 = viel höher; Minus = niedriger). Gefragte Paare zeigen die gegebene Stufe, errechnete Paare die Differenz der Skalenwerte. Skalenwert: niedrigstes Item = 0.'
+      : `Zelle = ${A.N === 1 ? 'Punkt' : 'Stimmen'} des Zeilen-Items im Vergleich mit dem Spalten-Item; Zeilensumme = Priorität.`) +
+      `<span class="swatch"></span>gefragt<span class="swatch" style="background:var(--inferred)"></span>errechnet` +
+      (c.estimated ? `<span class="swatch" style="background:var(--estimated)"></span>geschätzt (~)` : '');
+    let h = '<thead><tr><th></th>' + A.items.map(o => `<th>${o.letter}</th>`).join('') + `<th>${A.graded ? 'Skalenwert' : 'Summe'}</th></tr></thead><tbody>`;
+    A.items.forEach((o, i) => {
+      h += `<tr><th class="rowh" title="${esc(o.label)}">${o.letter} · ${esc(o.label)}</th>`;
+      A.items.forEach((_, j) => {
+        if (i === j) { h += '<td class="diag"></td>'; return; }
+        const st = A.status[i][j];
+        h += `<td class="${st}">${st === 'estimated' ? '~' : ''}${A.graded ? sgn(A.X[i][j]) : A.X[i][j]}</td>`;
+      });
+      h += `<td class="sum">${fmt(A.points[i])}</td></tr>`;
+    });
+    $('matrix').innerHTML = h + '</tbody>';
+
+    $('scaleNote').textContent = `Position = ${ptsName === 'Punkte' ? 'Punktzahl' : 'Skalenwert'}. So sind die Abstände zwischen den Items direkt zu sehen.`;
+    $('scale').innerHTML = scaleSvg(rows, axisMax);
   }
   // Ganze Zahlen unverändert, sonst eine Nachkommastelle mit Komma.
   const fmt = v => String(Math.round(v * 10) / 10).replace('.', ',');
@@ -362,45 +339,38 @@
 
   function pdfText(s) { return String(s).replace(/…/g, '...').replace(/[−–—]/g, '-').replace(/[^\x20-\x7E\xA0-\xFF€]/g, '?'); }
 
-  // Neues PDF-Dokument im Layout der App. header(sub, info, foot) beginnt eine neue Seite.
-  function pdfNew(title) {
+  function makePdf(A) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-    const P = { doc, PW: 297, PH: 210, M: 12, accent: [90, 128, 239], accentInk: [58, 95, 208], page: 0 };
-    title = pdfText(title);
-    P.header = (sub, info, foot) => {
-      const { PW, PH, M } = P;
-      if (P.page++) doc.addPage();
-      doc.setFillColor(...P.accent); doc.rect(0, 0, PW, 3, 'F');
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.setTextColor(28, 36, 48);
-      doc.text(title, M, 13);
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(93, 104, 119);
-      doc.text(pdfText(`${sub}  ·  ${info}`), M, 19);
-      const pg = `Seite ${P.page}`;
-      doc.text(pg, PW - M, PH - 6, { align: 'right' });
-      const link = 'tillnovotny.de';
-      const xr = PW - M - doc.getTextWidth(pg) - 6;
-      doc.setTextColor(...P.accentInk);
-      doc.textWithLink(link, xr - doc.getTextWidth(link), PH - 6, { url: 'https://tillnovotny.de' });
-      doc.setFont('helvetica', 'bold'); doc.setTextColor(28, 36, 48);
-      doc.text('TILL NOVOTNY', xr - doc.getTextWidth(link) - 3, PH - 6, { align: 'right' });
-      doc.setFont('helvetica', 'normal'); doc.setTextColor(93, 104, 119);
-      if (foot) doc.text(pdfText(foot), M, PH - 6);
-      doc.setTextColor(28, 36, 48);
-    };
-    return P;
-  }
-  const countsLine = A => { const c = A.counts; return `Paare: ${c.pairs} · gefragt: ${c.asked} · errechnet: ${c.inferred}${c.estimated ? ' · geschätzt: ' + c.estimated : ''} · Vollständigkeitscheck: ${c.open === 0 ? 'bestanden' : c.open + ' offen'}`; };
-
-  // Drei Seiten: Bewertungsmatrix, Rangliste, Prioritätenskala. prefix z. B. „Wichtigkeit: “.
-  function pdfAnalysisPages(P, A, info, prefix) {
-    const { doc, PW, PH, M, accent } = P;
-    prefix = prefix || '';
+    const PW = 297, PH = 210, M = 12;
     const rows = PV.ranking(A);
     const maxPts = A.maxPts, axisMax = Math.max(1, Math.ceil(maxPts));
     const ptsName = A.graded ? 'Skalenwert' : 'Punkte';
     const c = A.counts;
-    const header = sub => P.header(prefix + sub, info, countsLine(A));
+    const title = pdfText(S.title.trim() || 'Priorisierung per Paarvergleich');
+    const date = new Date().toLocaleDateString('de-DE');
+    const accent = [90, 128, 239], accentInk = [58, 95, 208];
+    let page = 0;
+
+    const header = sub => {
+      if (page++) doc.addPage();
+      doc.setFillColor(...accent); doc.rect(0, 0, PW, 3, 'F');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.setTextColor(28, 36, 48);
+      doc.text(title, M, 13);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(93, 104, 119);
+      doc.text(pdfText(`${sub}  ·  ${modeText()}  ·  ${A.n} Items  ·  ${date}`), M, 19);
+      const pg = `Seite ${page}`;
+    doc.text(pg, PW - M, PH - 6, { align: 'right' });
+    const link = 'tillnovotny.de';
+    const xr = PW - M - doc.getTextWidth(pg) - 6;
+    doc.setTextColor(...accentInk);
+    doc.textWithLink(link, xr - doc.getTextWidth(link), PH - 6, { url: 'https://tillnovotny.de' });
+    doc.setFont('helvetica', 'bold'); doc.setTextColor(28, 36, 48);
+    doc.text('TILL NOVOTNY', xr - doc.getTextWidth(link) - 3, PH - 6, { align: 'right' });
+    doc.setFont('helvetica', 'normal'); doc.setTextColor(93, 104, 119);
+      doc.text(pdfText(`Paare: ${c.pairs} · gefragt: ${c.asked} · errechnet: ${c.inferred}${c.estimated ? ' · geschätzt: ' + c.estimated : ''} · Vollständigkeitscheck: ${c.open === 0 ? 'bestanden' : c.open + ' offen'}`), M, PH - 6);
+      doc.setTextColor(28, 36, 48);
+    };
 
     // Seite 1: Matrix
     header('Bewertungsmatrix');
@@ -525,45 +495,28 @@
     list.forEach(it => doc.circle(it.x, axisY, 1.4, 'F'));
     doc.setFontSize(8.5);
     doc.text(pdfText(`Position auf der Achse = ${A.graded ? 'Skalenwert' : 'Punktzahl'}. Je größer der Abstand zwischen zwei Punkten, desto deutlicher der Prioritätsunterschied. Die Zahlen unter der Achse zeigen die Abstände zwischen benachbarten Rängen.`), M, Math.min(PH - 14, axisY + 20), { maxWidth: PW - 2 * M });
-  }
 
-  const fileSlug = s => (s.trim() || 'priorisierung').toLowerCase().replace(/[^a-z0-9äöüß]+/gi, '-').replace(/^-|-$/g, '') || 'priorisierung';
-
-  function makePdf(A) {
-    const P = pdfNew(S.title.trim() || 'Priorisierung per Paarvergleich');
-    const date = new Date().toLocaleDateString('de-DE');
-    pdfAnalysisPages(P, A, `${modeText()}  ·  ${A.n} Items  ·  ${date}`);
-    P.doc.save(S.title.trim() ? `${fileSlug(S.title)}-priorisierung.pdf` : 'priorisierung.pdf');
+    const fname = (S.title.trim() || 'priorisierung').toLowerCase().replace(/[^a-z0-9äöüß]+/gi, '-').replace(/^-|-$/g, '') || 'priorisierung';
+    doc.save(`${fname}-paarvergleich.pdf`);
   }
 
   // ---------- Sitzung ----------
   $('exportBtn').addEventListener('click', () => {
-    const blob = new Blob([JSON.stringify({ ...S, week: window.PVWeek.data() }, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify(S, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob); a.download = 'priorisierung-sitzung.json'; a.click();
+    a.href = URL.createObjectURL(blob); a.download = 'paarvergleich-sitzung.json'; a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   });
   $('importFile').addEventListener('change', e => {
     const f = e.target.files[0]; if (!f) return;
-    f.text().then(t => {
-      const o = JSON.parse(t);
-      S = sanitize(o); save();
-      if (o && o.week) window.PVWeek.setData(o.week);
-      $('itemRows').innerHTML = ''; render();
-    })
+    f.text().then(t => { S = sanitize(JSON.parse(t)); save(); $('itemRows').innerHTML = ''; render(); })
       .catch(() => alert('Die Datei konnte nicht gelesen werden.'));
     e.target.value = '';
   });
   $('resetBtn').addEventListener('click', () => {
-    if (S.mode === 'week') { if (window.PVWeek.reset()) go(2); return; }
     if (!confirm('Alle Eingaben löschen und neu beginnen?')) return;
     S = fresh(); save(); $('itemRows').innerHTML = ''; render();
   });
 
-  window.PVApp = {
-    go, step: () => S.step, mode: () => S.mode,
-    esc, fmt, sgn, rankHtml, legendHtml, matrixHtml, scaleSvg, scaleNote,
-    pdfNew, pdfAnalysisPages, pdfText, fileSlug,
-  };
   render();
 })();
