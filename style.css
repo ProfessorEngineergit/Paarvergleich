@@ -512,12 +512,18 @@ button.dl.fire::after { animation: drop .6s var(--ease); }
 }
 .wp-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
 .wp-head .wp-nav { width: 32px; height: 32px; }
-.wp-row { display: grid; grid-template-columns: 34px repeat(7, 1fr); width: 100%; padding: 6px 4px; margin: 2px 0; border: 1px solid transparent; border-radius: 10px;
+.wp-row { transition: background .15s ease, border-color .15s ease; display: grid; grid-template-columns: 34px repeat(7, 1fr); width: 100%; padding: 6px 4px; margin: 2px 0; border: 1px solid transparent; border-radius: 10px;
   background: none; color: var(--text); font-size: .88rem; font-weight: 400; letter-spacing: 0; text-transform: none; text-align: center; font-variant-numeric: tabular-nums; }
 .wp-row:hover, .wp-row:focus-visible { background: color-mix(in srgb, var(--accent) 14%, transparent); border-color: transparent; color: var(--text); outline: none; }
-.wp-row.now { border-color: color-mix(in srgb, var(--pink) 45%, transparent); }
-.wp-row.sel { background: var(--btn-bg); color: var(--btn-fg); }
-.wp-row.sel .out, .wp-row.sel .wp-kw { color: color-mix(in srgb, var(--btn-fg) 60%, transparent); }
+.wp-row.now { border-color: var(--accent); }
+/* Ausgewählte Woche: in hellem und dunklem Modus gleich (Pink, weiße Schrift), für alle Zustände
+   und direkt auf jeder Zahl gesetzt, damit kein Browser die Farbe über Hover/Fokus überschreibt. */
+.wp-row.sel, .wp-row.sel:hover, .wp-row.sel:focus, .wp-row.sel:focus-visible, .wp-row.sel:active {
+  background: #e94673; border-color: #e94673; color: #fff; -webkit-text-fill-color: #fff;
+}
+.wp-row.sel span, .wp-row.sel:hover span, .wp-row.sel:focus span { color: #fff; -webkit-text-fill-color: #fff; opacity: 1; }
+.wp-row.sel .out, .wp-row.sel .wp-kw { color: rgba(255, 255, 255, .75); -webkit-text-fill-color: rgba(255, 255, 255, .75); }
+.wp-row.sel:focus-visible { box-shadow: 0 0 0 3px rgba(233, 70, 115, .35); }
 .wp-row .out { color: var(--muted); opacity: .6; }
 .wp-kw { color: var(--muted); font-size: .75rem; align-self: center; }
 .wp-dow { font-size: .72rem; color: var(--muted); letter-spacing: .04em; pointer-events: none; padding-top: 0; padding-bottom: 2px; }
