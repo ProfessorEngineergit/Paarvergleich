@@ -52,6 +52,9 @@
   function render() {
     const wk = S.mode === 'week';
     const sid = (wk && S.step > 1 ? 'wstep' : 'step') + S.step;
+    // Hintergrund-Lichtpunkt wandert je Schritt an eine andere Stelle (siehe style.css).
+    document.body.dataset.step = S.step;
+    document.body.dataset.mode = S.mode || '';
     document.querySelectorAll('.step').forEach(el => { el.hidden = el.id !== sid; });
     const names = STEP_NAMES[wk ? 'week' : 'std'];
     document.querySelectorAll('#steps li').forEach(li => {
@@ -558,6 +561,14 @@
     if (S.mode === 'week') { if (window.PVWeek.reset()) go(2); return; }
     if (!confirm('Alle Eingaben löschen und neu beginnen?')) return;
     S = fresh(); save(); $('itemRows').innerHTML = ''; render();
+  });
+
+  // Kleine Klick-Animation für Pfeil-, Plus- und Download-Buttons.
+  document.addEventListener('click', e => {
+    const b = e.target.closest('button.go, button.back, button.add, button.dl');
+    if (!b || b.disabled) return;
+    b.classList.remove('fire'); void b.offsetWidth; b.classList.add('fire');
+    setTimeout(() => b.classList.remove('fire'), 700);
   });
 
   window.PVApp = {
