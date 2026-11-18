@@ -92,7 +92,7 @@ a.brand-foot:hover { background: var(--accent); color: #fff; }
 .field input { display: block; width: 100%; max-width: 420px; margin-top: 4px; font-weight: 400; }
 .check { display: flex; gap: 8px; align-items: flex-start; margin: 8px 0; font-size: .9rem; }
 
-input[type=text], input[type=number], textarea {
+input[type=text], input[type=number], input[type=email], input[type=search], textarea {
   font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line);
   border-radius: 8px; padding: 8px 12px;
 }
@@ -384,10 +384,10 @@ body[data-step="4"] .b2 { transform: translate(-5vmax, 9vmax); }
   box-shadow: var(--gloss), var(--lift);
 }
 .card { transition: box-shadow .4s ease, transform .4s ease; }
-input[type=text], input[type=number], input[type=date], textarea {
+input[type=text], input[type=number], input[type=date], input[type=email], input[type=search], textarea {
   background: var(--glass-hi); border-color: var(--edge-soft); transition: border-color .2s, box-shadow .2s, background .2s;
 }
-input[type=text]:focus, input[type=number]:focus, input[type=date]:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent); }
+input[type=text]:focus, input[type=number]:focus, input[type=date]:focus, input[type=email]:focus, input[type=search]:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent); }
 
 /* Checkboxen und Radiobuttons ganz im Website-Stil (ohne System-Darstellung);
    Fokusrahmen nur bei Tastaturbedienung, nicht beim Klicken. */
@@ -533,3 +533,66 @@ button.dl.fire::after { animation: drop .6s var(--ease); }
 /* Schwebende Elemente liegen in Glasflächen; dort greift die Hintergrund-Unschärfe nicht
    (verschachtelt), daher nahezu deckender Hintergrund, damit nichts durchscheint. */
 .wp-pop, .toast, .qtip { background: var(--sheen), color-mix(in srgb, var(--surface) 99%, transparent); }
+
+/* --- Konto (sync.js) --- */
+.brand-right { display: flex; align-items: center; gap: 8px; }
+.acct-btn { display: inline-flex; align-items: center; gap: 8px; padding: 5px 14px; font-size: .78rem; letter-spacing: .12em; border: 1px solid var(--text); background: var(--glass-hi); }
+.acct-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); transition: background .3s; }
+.acct-btn[data-status="out"] .acct-dot { background: var(--pink); }
+.acct-btn[data-status="saved"] .acct-dot, .acct-btn[data-status="idle"] .acct-dot { background: var(--t-green); }
+.acct-btn[data-status="saving"] .acct-dot { background: var(--t-yellow); animation: pulse 1s ease-in-out infinite; }
+.acct-btn[data-status="error"] .acct-dot { background: var(--t-red); }
+@keyframes pulse { 50% { opacity: .35; } }
+
+dialog.acct {
+  width: min(560px, calc(100vw - 24px)); max-height: calc(100dvh - 32px); padding: 20px 22px 18px; color: var(--text);
+  border: 1px solid var(--edge); border-radius: 24px; background: var(--sheen), color-mix(in srgb, var(--surface) 97%, transparent);
+  box-shadow: var(--gloss), 0 30px 80px -20px rgba(0, 0, 0, .45);
+}
+dialog.acct.wide { width: min(1100px, calc(100vw - 24px)); }
+dialog.acct[open] { animation: rise .4s var(--ease) both; }
+dialog.acct::backdrop { background: rgba(20, 16, 24, .32); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.acct-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
+.acct-head h2 { margin: 0; font-size: 1.35rem; }
+.acct-x { width: 36px; height: 36px; padding: 0; font-size: 1.3rem; line-height: 1; letter-spacing: 0; border-color: var(--edge); }
+.ac-form .field input { max-width: none; }
+.ac-form > .primary { margin-top: 4px; }
+.ac-code { font-size: 1.5rem !important; letter-spacing: .35em; text-align: center; font-variant-numeric: tabular-nums; max-width: 240px !important; }
+.ac-note { padding: 8px 12px; border-radius: 12px; background: color-mix(in srgb, var(--t-green) 14%, transparent); font-size: .9rem; }
+.ac-note.err { background: color-mix(in srgb, var(--t-red) 14%, transparent); }
+.ac-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.ac-user { margin: 4px 0; }
+.ac-status { font-size: .85rem; color: var(--muted); margin: 0 0 8px; }
+.ac-status::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; background: var(--t-green); vertical-align: 1px; }
+.ac-status[data-status="saving"]::before { background: var(--t-yellow); }
+.ac-status[data-status="offline"]::before { background: var(--muted); }
+.ac-status[data-status="error"]::before { background: var(--t-red); }
+.ac-sec { border-top: 1px solid var(--edge-soft); margin-top: 14px; padding-top: 4px; }
+.ac-sec h3 { margin: 10px 0 6px; font-size: 1rem; }
+.ac-list { list-style: none; padding: 0; margin: 0 0 8px; }
+.ac-list li { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 0; border-bottom: 1px solid var(--edge-soft); }
+.ac-codechip { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85rem; padding: 1px 6px; border-radius: 6px; background: var(--glass-lo); border: 1px solid var(--edge-soft); }
+.ac-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+.ac-grid .ac-consent, .ac-grid > button { grid-column: 1 / -1; justify-self: start; }
+@media (max-width: 520px) { .ac-grid { grid-template-columns: 1fr; } }
+.ac-consent { font-size: .85rem; }
+.ac-inline { display: flex; gap: 8px; }
+.ac-inline input { flex: 1; min-width: 0; }
+.ac-choice { display: grid; gap: 8px; margin: 12px 0; }
+.ac-install { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding-top: 12px; }
+.ac-end { padding-top: 12px; }
+.ac-end .ac-row + .ac-row { margin-top: 10px; justify-content: space-between; }
+button.link.danger { color: var(--t-red); padding-left: 0; }
+.ac-legal a, .ac-end a { color: var(--muted); }
+.ac-search { width: 100%; margin: 10px 0; }
+.ac-dash th, .ac-dash td { font-size: .82rem; }
+.ac-dash td.over { color: var(--t-red); font-weight: 600; }
+.ac-dash tr.ac-sum td { border-top: 2px solid var(--edge); background: var(--glass-lo); }
+.foot .legal { flex-basis: 100%; text-align: center; font-size: .78rem; letter-spacing: .06em; }
+.foot .legal a { color: var(--muted); }
+
+/* --- Rechtstexte --- */
+.legal-page { line-height: 1.6; }
+.legal-page h2 { margin-top: 28px; font-size: 1.15rem; }
+.legal-page h3 { font-size: 1rem; margin: 18px 0 4px; }
+.legal-page p, .legal-page li { max-width: 72ch; }

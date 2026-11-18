@@ -60,7 +60,10 @@
   function load() {
     try { const raw = localStorage.getItem(KEY); return raw ? sanitize(JSON.parse(raw)) : blank(); } catch (e) { return blank(); }
   }
-  function save() { try { localStorage.setItem(KEY, JSON.stringify(W)); } catch (e) { /* ohne Speicher weiterarbeiten */ } }
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(W)); } catch (e) { /* ohne Speicher weiterarbeiten */ }
+    if (window.PVSync) window.PVSync.touch(); // bei Anmeldung: Änderung ins Konto übernehmen
+  }
   const str = (v, n) => typeof v === 'string' ? v.slice(0, n) : '';
   const isIsoDate = v => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
   function cleanProject(p) {
@@ -871,6 +874,43 @@
     doc.save(`wochenplanung-kw${isoWeek(parseIso(mondayIso(c.start)))}-${c.start.slice(0, 4)}.pdf`);
   }
 
+  // ---------- Kennzahlen für den Coach ----------
+  // Nur Zahlen, keine Projektnamen oder Beschreibungen. Wird nur übertragen, wenn die Person
+  // einem Kurs mit Freigabe beigetreten ist.
+  function stats() {
+    const c = W.cur, r1 = v => Math.round(v * 10) / 10;
+    const ps = c ? c.projects.filter(p => p.status !== 'dropped') : []; // geplante Projekte der Woche (ohne gestrichene)
+    const planned = sumHours(ps), priv = sumHours(ps.filter(p => p.kind === 'private'));
+    const cnt = st => ps.filter(p => p.status === st).length;
+    const ref = [iso(mondayOf(new Date())), c ? mondayIso(c.start) : ''].sort().pop();
+    const cut = parseIso(ref); cut.setDate(cut.getDate() - 21);
+    const tr = W.tracking.filter(t => mondayIso(t.week) >= iso(cut));
+    const weeks = [...new Set(tr.map(t => mondayIso(t.week)))].sort().map(wk => {
+      const l = tr.filter(t => mondayIso(t.week) === wk);
+      return { week: wk, kw: isoWeek(parseIso(wk)), done: l.length, more: l.filter(t => t.result === 'more').length, hours: sumHours(l) };
+    });
+    const w = weights(), B = valueBalance(ps, w);
+    return {
+      v: 1,
+      week: c ? mondayIso(c.start) : null,
+      kw: c ? isoWeek(parseIso(mondayIso(c.start))) : null,
+      available: c && c.hours != null ? c.hours : null,
+      planned,
+      projects: ps.length,
+      private_share: planned ? Math.round(100 * priv / planned) : null,
+      open: cnt('open'), done: cnt('done'), more: cnt('more'), moved: cnt('moved'),
+      comparisons: c ? c.imp.length + c.urg.length : 0,
+      backlog: W.backlog.length,
+      backlog_avg_shifts: W.backlog.length ? r1(W.backlog.reduce((s, p) => s + p.shifts, 0) / W.backlog.length) : null,
+      done_4w: tr.length,
+      more_4w: tr.filter(t => t.result === 'more').length,
+      avg_shifts_done_4w: tr.length ? r1(tr.reduce((s, t) => s + t.shifts, 0) / tr.length) : null,
+      weeks,
+      values: w ? B.rows.map(r => ({ k: r.k, weight: Math.round(r.w), share: Math.round(r.share) })) : null,
+      pv: App().pvCounts(),
+    };
+  }
+
   // ---------- Schnittstelle ----------
   window.PVWeek = {
     render(step) {
@@ -891,7 +931,13 @@
     },
     complete: () => analyses().complete,
     data: () => W,
-    setData(o) { W = sanitize(o); editId = null; save(); },
+    // silent: aus dem Konto geladen, nicht erneut hochladen
+    setData(o, silent) {
+      W = sanitize(o); editId = null; valuesRun = false;
+      if (silent) { try { localStorage.setItem(KEY, JSON.stringify(W)); } catch (e) { /* ohne Speicher */ } } else save();
+    },
+    isEmpty: () => !W.backlog.length && !W.tracking.length && !W.values.answers.length && !(W.cur && W.cur.projects.length),
+    stats,
     reset() {
       if (!confirm('Aktuelle Wochenplanung verwerfen?\n\nÜbernommene Projekte der Vorwoche gehen zurück in die Liste der nicht erledigten Projekte; die Tracking-Liste bleibt erhalten.')) return false;
       if (W.cur) {

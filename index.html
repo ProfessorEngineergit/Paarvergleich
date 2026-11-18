@@ -6,6 +6,16 @@
 <title>Priorisierung – tillnovotny.de</title>
 <meta name="description" content="Bis zu 20 Items per paarweisem Vergleich priorisieren – einzeln, in der Gruppe oder als Wochenplanung, mit möglichst wenigen Fragen und PDF-Auswertung.">
 <link rel="stylesheet" href="style.css">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="icon" href="icons/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="theme-color" content="#f3f2f0" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e0e10" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="prio">
 </head>
 <body>
 <div class="bg" aria-hidden="true"><span class="blob b1"></span><span class="blob b2"></span></div>
@@ -13,7 +23,10 @@
   <div class="wrap">
     <div class="brandbar">
       <a class="wordmark" href="https://tillnovotny.de" target="_blank" rel="noopener">Till Novotny</a>
-      <a class="brand" href="https://tillnovotny.de" target="_blank" rel="noopener">Zur Website ↗</a>
+      <div class="brand-right">
+        <button type="button" class="acct-btn" id="acctBtn" aria-haspopup="dialog"><span class="acct-dot" aria-hidden="true"></span><span id="acctLabel">Anmelden</span></button>
+        <a class="brand" href="https://tillnovotny.de" target="_blank" rel="noopener">Zur Website ↗</a>
+      </div>
     </div>
     <h1>Priorisierung</h1>
     <p class="sub">Bis zu 20 Items durch paarweise Vergleiche priorisieren – mit möglichst wenigen Fragen.</p>
@@ -258,12 +271,24 @@
     <button class="link" id="exportBtn">Sitzung speichern (JSON)</button>
     <label class="link">Sitzung laden<input type="file" id="importFile" accept="application/json" hidden></label>
     <button class="link" id="resetBtn">Neu beginnen</button>
+    <span class="legal"><a href="impressum.html">Impressum</a> · <a href="datenschutz.html">Datenschutz</a></span>
   </footer>
 </main>
+
+<!-- Konto, Synchronisierung und Kurse (sync.js) -->
+<dialog id="acct" class="acct" aria-labelledby="acctTitle">
+  <div class="acct-head">
+    <h2 id="acctTitle">Konto</h2>
+    <button type="button" class="acct-x" id="acctClose" aria-label="Schließen">×</button>
+  </div>
+  <div id="acctBody"></div>
+</dialog>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="engine.js"></script>
 <script src="week.js"></script>
 <script src="app.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
+<script src="sync.js"></script>
 </body>
 </html>

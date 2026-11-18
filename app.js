@@ -17,6 +17,7 @@
   }
   function save() {
     try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* ohne Speicher weiterarbeiten */ }
+    if (window.PVSync) window.PVSync.touch(); // bei Anmeldung: Änderung ins Konto übernehmen
   }
   function sanitize(o) {
     const s = fresh();
@@ -624,6 +625,15 @@
     go, step: () => S.step, mode: () => S.mode,
     esc, fmt, sgn, rankHtml, legendHtml, matrixHtml, scaleSvg, scaleNote,
     pdfNew, pdfAnalysisPages, pdfText, fileSlug,
+    // Für die Synchronisierung mit dem Konto
+    getState: () => S,
+    setState(o) {
+      S = sanitize(o);
+      try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* ohne Speicher */ }
+      $('itemRows').innerHTML = ''; render();
+    },
+    isEmpty: () => !S.mode && !S.answers.length && !S.labels.some(l => l.trim()),
+    pvCounts: () => ({ items: items().length, answers: S.answers.length, mode: S.mode }),
   };
   render();
 })();
