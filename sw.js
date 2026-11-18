@@ -4,7 +4,7 @@
  * aktualisieren. Neue Versionen sind damit spätestens beim nächsten Öffnen da.
  * Anfragen an Supabase (Konto, Daten) laufen immer direkt übers Netz.
  */
-const CACHE = 'prio-v2';
+const CACHE = 'prio-v3';
 const SHELL = [
   './', './index.html', './style.css', './engine.js', './week.js', './app.js', './sync.js',
   './manifest.webmanifest', './impressum.html', './datenschutz.html',
