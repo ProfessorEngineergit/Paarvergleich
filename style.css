@@ -596,3 +596,12 @@ button.link.danger { color: var(--t-red); padding-left: 0; }
 .legal-page h2 { margin-top: 28px; font-size: 1.15rem; }
 .legal-page h3 { font-size: 1rem; margin: 18px 0 4px; }
 .legal-page p, .legal-page li { max-width: 72ch; }
+
+.ac-det { padding-top: 0; }
+.ac-det > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; padding: 12px 0 8px; font-weight: 600; }
+.ac-det > summary::-webkit-details-marker { display: none; }
+.ac-det > summary::before { content: '›'; display: inline-block; width: 14px; font-size: 1.2rem; line-height: 1; color: var(--muted); transition: transform .25s var(--spring); }
+.ac-det[open] > summary::before { transform: rotate(90deg); }
+.ac-det[open] > :not(summary) { animation: rise .3s var(--ease) both; }
+.ac-toggle { margin: 6px 0 0; font-size: .85rem; }
+.ac-dash tr.ac-noshare td { color: var(--muted); }

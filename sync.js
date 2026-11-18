@@ -51,6 +51,7 @@
   let mergeRemote = null;
   let courses = { own: [], member: [], counts: {} };
   let dash = null;          // { course, rows, q }
+  const openSecs = new Set(); // aufgeklappte Bereiche im Konto-Dialog
 
   const meta = (() => { try { return JSON.parse(localStorage.getItem(META_KEY)) || {}; } catch (e) { return {}; } })();
   const saveMeta = () => { try { localStorage.setItem(META_KEY, JSON.stringify(meta)); } catch (e) { /* ohne Speicher */ } };
@@ -83,11 +84,14 @@
     if (error) { failed(error); return; }
     meta.uid = user.id; meta.dirty = false; meta.remoteAt = data.updated_at; saveMeta();
     lastSaved = new Date(); setStatus('saved');
-    if (courses.member.length) pushStats();
+    if (sharing()) pushStats();
   }
+  // Kennzahlen werden nur übertragen, solange mindestens ein Kurs das Teilen erlaubt.
+  const sharing = () => courses.member.some(m => m.share);
   async function pushStats() {
     if (!user) return;
-    await sb.from('member_stats').upsert({ user_id: user.id, stats: window.PVWeek.stats(), updated_at: new Date().toISOString() });
+    if (sharing()) await sb.from('member_stats').upsert({ user_id: user.id, stats: window.PVWeek.stats(), updated_at: new Date().toISOString() });
+    else await sb.from('member_stats').delete().eq('user_id', user.id);
   }
   async function pull() {
     if (!user || !sb) return;
@@ -134,7 +138,8 @@
   async function onUser() {
     updateButton();
     if (user) {
-      if (view === 'code') { view = 'main'; note = ''; }
+      // Nach der Anmeldung direkt zurück in die App (Freigaben gibt es später im Konto).
+      if (view === 'code') { view = 'main'; note = ''; if (dlg.open) dlg.close(); }
       await loadCourses();
       await pull();
     } else {
@@ -174,7 +179,7 @@
     if (!user) return;
     const [own, mem] = await Promise.all([
       sb.from('courses').select('id, code, name, created_at').eq('coach_id', user.id).order('created_at'),
-      sb.from('course_members').select('course_id, display_name, joined_at, courses(name, code)').eq('user_id', user.id),
+      sb.from('course_members').select('course_id, display_name, share, joined_at, courses(name, code)').eq('user_id', user.id),
     ]);
     courses.own = own.data || [];
     courses.member = (mem.data || []).filter(m => m.courses);
@@ -191,25 +196,32 @@
     if (error) { say('Kurs konnte nicht angelegt werden: ' + error.message, true); return; }
     await loadCourses(); say('Kurs angelegt. Den Code an die Teilnehmenden weitergeben.');
   }
-  async function joinCourse(code, name) {
-    busy = true; render();
-    const { error } = await sb.rpc('join_course', { course_code: code, name });
+  async function joinCourse(code, name, share) {
+    busy = true; openSecs.add('share'); render();
+    const { error } = await sb.rpc('join_course', { course_code: code, name, share_stats: share });
     busy = false;
     if (error) { say(/nicht gefunden/i.test(error.message) ? 'Zu diesem Code gibt es keinen Kurs. Bitte den Code prüfen.' : 'Beitritt fehlgeschlagen: ' + error.message, true); return; }
-    await loadCourses(); await pushStats(); say('Beigetreten. Die Kursleitung sieht ab jetzt Ihre Kennzahlen, keine Inhalte.');
+    await loadCourses(); await pushStats();
+    say(share ? 'Beigetreten. Die Kursleitung sieht Ihre Kennzahlen, keine Inhalte.' : 'Beigetreten. Es werden keine Kennzahlen geteilt; das lässt sich jederzeit einschalten.');
+  }
+  async function setSharing(courseId, on) {
+    openSecs.add('share');
+    const { error } = await sb.rpc('set_course_sharing', { course: courseId, share_stats: on });
+    if (error) { say('Ändern fehlgeschlagen: ' + error.message, true); await loadCourses(); render(); return; }
+    await loadCourses(); await pushStats();
+    say(on ? 'Kennzahlen werden mit der Kursleitung geteilt.' : 'Teilen beendet. Die Kursleitung sieht keine Kennzahlen mehr von Ihnen.');
   }
   async function leaveCourse(courseId) {
-    if (!confirm('Kurs verlassen? Die Kursleitung sieht danach keine Kennzahlen mehr von Ihnen.')) return;
+    if (!confirm('Kurs verlassen?')) return;
     await sb.from('course_members').delete().eq('course_id', courseId).eq('user_id', user.id);
-    await loadCourses();
-    if (!courses.member.length) await sb.from('member_stats').delete().eq('user_id', user.id);
+    await loadCourses(); await pushStats();
     say('Kurs verlassen.');
   }
   async function openDash(courseId) {
     const course = courses.own.find(c => c.id === courseId);
     if (!course) return;
     busy = true; view = 'dash'; dash = { course, rows: [], q: '' }; render();
-    const { data: mem } = await sb.from('course_members').select('user_id, display_name, joined_at').eq('course_id', courseId).order('display_name');
+    const { data: mem } = await sb.from('course_members').select('user_id, display_name, share, joined_at').eq('course_id', courseId).order('display_name');
     const ids = (mem || []).map(m => m.user_id);
     const { data: st } = ids.length ? await sb.from('member_stats').select('user_id, stats, updated_at').in('user_id', ids) : { data: [] };
     const byId = Object.fromEntries((st || []).map(s => [s.user_id, s]));
@@ -297,30 +309,29 @@
     // Angemeldet: Übersicht
     const own = courses.own.map(c => `<li><div><b>${esc(c.name)}</b><br><span class="muted small">Code <code class="ac-codechip">${esc(c.code)}</code> · ${courses.counts[c.id] || 0} Teilnehmende</span></div>
       <div class="ac-row"><button type="button" class="mini" data-a="copy" data-code="${esc(c.code)}">Code kopieren</button><button type="button" class="mini primary" data-a="dash" data-id="${c.id}">Auswertung</button></div></li>`).join('');
-    const mem = courses.member.map(m => `<li><div><b>${esc(m.courses.name)}</b><br><span class="muted small">als „${esc(m.display_name)}“ · seit ${date(m.joined_at)}</span></div>
+    const mem = courses.member.map(m => `<li><div><b>${esc(m.courses.name)}</b><br><span class="muted small">als „${esc(m.display_name)}“ · seit ${date(m.joined_at)}</span>
+        <label class="check ac-toggle"><input type="checkbox" data-share="${m.course_id}" ${m.share ? 'checked' : ''}> <span>Kennzahlen mit der Kursleitung teilen</span></label></div>
       <button type="button" class="mini" data-a="leave" data-id="${m.course_id}">Verlassen</button></li>`).join('');
+    const sec = (key, title, inner) => `<details class="ac-sec ac-det" data-sec="${key}" ${openSecs.has(key) ? 'open' : ''}><summary>${title}</summary>${inner}</details>`;
     body.innerHTML = `
       <p class="ac-user"><span class="muted small">Angemeldet als</span><br><b>${esc(user.email)}</b></p>
       <p class="ac-status" id="acStatus" data-status="${status}">${esc(statusText())}</p>
       ${n}
-      <section class="ac-sec">
-        <h3>Kurs beitreten</h3>
+      ${sec('share', `Daten freigeben${courses.member.length ? ` <span class="muted small">(${courses.member.filter(m => m.share).length} von ${courses.member.length} ${courses.member.length === 1 ? 'Kurs' : 'Kursen'} geteilt)</span>` : ''}`, `
+        <p class="muted small">Optional: Mit einem Kurscode einem Kurs beitreten und, wenn gewünscht, <b>Kennzahlen</b> mit der Kursleitung teilen (z. B. Anzahl Projekte, geplante Stunden, Erledigungsquote, Verschiebungen). <b>Projektnamen, Beschreibungen und Priorisierungen bleiben immer privat.</b> Teilen lässt sich jederzeit ein- und ausschalten.</p>
         ${mem ? `<ul class="ac-list">${mem}</ul>` : ''}
         <form id="acJoinForm" class="ac-form ac-grid">
           <label class="field">Kurscode<input type="text" id="acJoinCode" required placeholder="PRIO-XXXX" autocapitalize="characters" autocomplete="off"></label>
           <label class="field">Name im Kurs<input type="text" id="acJoinName" required maxlength="60" placeholder="z. B. Vorname"></label>
-          <label class="check ac-consent"><input type="checkbox" id="acConsent" required> <span>Die Kursleitung darf meine <b>Kennzahlen</b> sehen (z. B. Anzahl Projekte, geplante Stunden, Erledigungsquote, Verschiebungen). <b>Projektnamen, Beschreibungen und Priorisierungen bleiben privat.</b> Widerruf jederzeit durch Verlassen des Kurses.</span></label>
-          <button class="primary" ${dis}>Beitreten</button>
-        </form>
-      </section>
-      <section class="ac-sec">
-        <h3>Eigene Kurse <span class="muted small">(für Coaches)</span></h3>
+          <label class="check ac-consent"><input type="checkbox" id="acConsent"> <span>Kennzahlen mit der Kursleitung teilen (kann auch später eingeschaltet werden)</span></label>
+          <button class="primary" ${dis}>Kurs beitreten</button>
+        </form>`)}
+      ${sec('coach', 'Eigene Kurse <span class="muted small">(für Coaches)</span>', `
         ${own ? `<ul class="ac-list">${own}</ul>` : '<p class="muted small">Noch keine eigenen Kurse.</p>'}
         <form id="acNewForm" class="ac-form ac-inline">
           <input type="text" id="acNewName" required maxlength="80" placeholder="Name des Kurses" aria-label="Name des Kurses">
           <button class="mini primary add" ${dis}>Kurs anlegen</button>
-        </form>
-      </section>
+        </form>`)}
       ${installHtml()}
       <section class="ac-sec ac-end">
         <div class="ac-row">
@@ -351,18 +362,21 @@
     const head = `<tr><th>Name</th><th>Stand</th><th class="num">KW</th><th class="num">Projekte</th><th class="num">geplant / verfügbar</th>
       <th class="num">erledigt (Woche)</th><th class="num">erledigt (4 Wo.)</th><th class="num">mit mehr Zeit</th><th class="num">Ø Verschieb.</th>
       <th class="num">offen verschoben</th><th class="num">privat</th><th class="num">Vergleiche</th><th></th></tr>`;
-    const line = r => { const s = S(r); return `<tr>
+    const line = r => { const s = S(r); if (!r.share) return `<tr class="ac-noshare"><td class="kw"><b>${esc(r.display_name)}</b></td><td class="muted small" colspan="11">teilt keine Kennzahlen</td>
+      <td><button type="button" class="mini" data-a="remove" data-id="${r.user_id}" data-name="${esc(r.display_name)}" title="Aus dem Kurs entfernen">×</button></td></tr>`;
+      return `<tr>
       <td class="kw"><b>${esc(r.display_name)}</b></td><td class="muted small">${fresh(r)}</td>
       <td class="num">${s.kw || '–'}</td><td class="num">${s.projects ?? '–'}</td>
-      <td class="num ${s.available && s.planned / s.available >= 1 ? 'over' : ''}">${s.planned != null ? fmt(s.planned) + ' h' + (s.available ? ' / ' + fmt(s.available) + ' h' : '') : '–'}</td>
+      <td class="num ${s.available && s.planned / s.available >= 1 ? 'over' : ''}">${hrs(s.planned, s.available)}</td>
       <td class="num">${s.projects ? doneW(s) + ' von ' + s.projects : '–'}</td>
       <td class="num">${s.done_4w ?? '–'}</td><td class="num">${s.done_4w ? pct(s.more_4w, s.done_4w) : '–'}</td>
       <td class="num">${fmt(s.avg_shifts_done_4w)}</td><td class="num">${s.backlog ?? '–'}</td>
       <td class="num">${s.private_share != null ? s.private_share + ' %' : '–'}</td><td class="num">${s.comparisons ?? '–'}</td>
       <td><button type="button" class="mini" data-a="remove" data-id="${r.user_id}" data-name="${esc(r.display_name)}" title="Aus dem Kurs entfernen">×</button></td></tr>`; };
     const n = d.rows.length;
-    const sum = n ? `<tr class="ac-sum"><td><b>Kurs (Ø)</b></td><td></td><td></td><td class="num">${fmt(avg(r => S(r).projects))}</td>
-      <td class="num">${fmt(avg(r => S(r).planned))} / ${fmt(avg(r => S(r).available))} h</td><td class="num">${fmt(avg(r => S(r).projects ? doneW(S(r)) : null))}</td>
+    const hrs = (p, a) => p == null ? '–' : fmt(p) + ' h' + (a ? ' / ' + fmt(a) + ' h' : '');
+    const sum = d.rows.some(r => r.share && r.stats) ? `<tr class="ac-sum"><td><b>Kurs (Ø)</b></td><td></td><td></td><td class="num">${fmt(avg(r => S(r).projects))}</td>
+      <td class="num">${hrs(avg(r => S(r).planned), avg(r => S(r).available))}</td><td class="num">${fmt(avg(r => S(r).projects ? doneW(S(r)) : null))}</td>
       <td class="num">${fmt(avg(r => S(r).done_4w))}</td><td class="num">${(() => { const a = avg(r => S(r).done_4w ? 100 * S(r).more_4w / S(r).done_4w : null); return a == null ? '–' : Math.round(a) + ' %'; })()}</td>
       <td class="num">${fmt(avg(r => S(r).avg_shifts_done_4w))}</td><td class="num">${fmt(avg(r => S(r).backlog))}</td>
       <td class="num">${(() => { const a = avg(r => S(r).private_share); return a == null ? '–' : Math.round(a) + ' %'; })()}</td><td class="num">${fmt(avg(r => S(r).comparisons))}</td><td></td></tr>` : '';
@@ -372,8 +386,8 @@
         <button type="button" class="mini" data-a="dash" data-id="${d.course.id}">Aktualisieren</button></p>
       <input type="search" id="acSearch" class="ac-search" placeholder="Teilnehmende suchen …" value="${esc(d.q)}" aria-label="Teilnehmende suchen">
       ${n ? `<div class="scroll"><table class="rank ac-dash"><thead>${head}</thead><tbody>${rows.map(line).join('') || '<tr><td colspan="13" class="muted">Keine Treffer.</td></tr>'}${q ? '' : sum}</tbody></table></div>`
-        : '<p class="muted">Noch niemand beigetreten. Den Code an die Teilnehmenden weitergeben: Sie treten unter „Konto → Kurs beitreten“ bei.</p>'}
-      <p class="muted small">Sichtbar sind nur Kennzahlen, die die Teilnehmenden mit dem Beitritt freigegeben haben. Inhalte der Planungen sind für die Kursleitung technisch nicht abrufbar. „Stand“ = letzte Aktualisierung; Kennzahlen beziehen sich auf die aktuell geplante Woche bzw. die letzten vier Wochen.</p>`;
+        : '<p class="muted">Noch niemand beigetreten. Den Code an die Teilnehmenden weitergeben: Sie treten unter „Konto → Daten freigeben“ bei.</p>'}
+      <p class="muted small">Sichtbar sind nur Kennzahlen von Teilnehmenden, die das Teilen eingeschaltet haben. Inhalte der Planungen sind für die Kursleitung technisch nicht abrufbar. „Stand“ = letzte Aktualisierung; Kennzahlen beziehen sich auf die aktuell geplante Woche bzw. die letzten vier Wochen.</p>`;
   }
 
   // ---------- Eingaben im Dialog ----------
@@ -382,9 +396,21 @@
     const f = e.target.id;
     if (f === 'acMailForm') { const v = $('acMail').value.trim(); if (v) sendCode(v); }
     else if (f === 'acCodeForm') { const v = $('acCode').value.replace(/\s/g, ''); if (v) verify(v); }
-    else if (f === 'acJoinForm') joinCourse($('acJoinCode').value.trim(), $('acJoinName').value.trim());
-    else if (f === 'acNewForm') createCourse($('acNewName').value.trim());
+    else if (f === 'acJoinForm') joinCourse($('acJoinCode').value.trim(), $('acJoinName').value.trim(), $('acConsent').checked);
+    else if (f === 'acNewForm') { openSecs.add('coach'); createCourse($('acNewName').value.trim()); }
   });
+  $('acctBody').addEventListener('change', e => {
+    const id = e.target.dataset && e.target.dataset.share;
+    if (!id) return;
+    const on = e.target.checked;
+    if (on && !confirm('Kennzahlen mit der Kursleitung teilen?\n\nSichtbar werden z. B. Anzahl Projekte, geplante Stunden, Erledigungsquote und Verschiebungen. Projektnamen, Beschreibungen und Priorisierungen bleiben privat.')) { e.target.checked = false; return; }
+    setSharing(id, on);
+  });
+  // Auf- und zugeklappte Bereiche merken ('toggle' steigt nicht auf, daher Capture)
+  $('acctBody').addEventListener('toggle', e => {
+    const k = e.target.dataset && e.target.dataset.sec;
+    if (k) { if (e.target.open) openSecs.add(k); else openSecs.delete(k); }
+  }, true);
   $('acctBody').addEventListener('input', e => {
     if (e.target.id === 'acSearch' && dash) {
       dash.q = e.target.value; const pos = e.target.selectionStart;

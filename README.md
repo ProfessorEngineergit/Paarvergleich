@@ -29,7 +29,8 @@ Projekte, die nach abgeschlossenen Vergleichen verschoben, gestrichen oder erled
 - **Ohne Konto** funktioniert alles wie bisher, nur auf dem eigenen Gerät.
 - **Anmeldung ohne Passwort:** E-Mail eingeben, Code aus der Mail eintippen. Das Konto wird dabei angelegt, die E-Mail ist damit bestätigt.
 - **Synchronisierung:** Die App speichert sofort lokal und überträgt im Hintergrund ins Konto (Supabase, Region Frankfurt). Gewinnt der zuletzt bearbeitete Stand. Liegen bei der ersten Anmeldung auf einem Gerät abweichende Daten vor, fragt die App, welche gelten.
-- **Kurse:** Coaches legen unter „Konto“ einen Kurs an und geben den Code (`PRIO-XXXX`) weiter. Wer mit Freigabe beitritt, überträgt zusätzlich Kennzahlen (Anzahl Projekte, geplante/verfügbare Stunden, erledigt, mit mehr Zeit, Verschiebungen, Anteil privat, Vergleiche). Projektnamen, Beschreibungen und Priorisierungen sieht die Kursleitung nicht; das erzwingt die Datenbank per Row Level Security.
+- **Nach der Anmeldung** geht es direkt in die App. Kurse und Freigaben liegen eingeklappt unter „Konto → Daten freigeben“.
+- **Kurse:** Coaches legen unter „Konto → Eigene Kurse“ einen Kurs an und geben den Code (`PRIO-XXXX`) weiter. Beitritt und Teilen sind getrennt: Man kann ohne Teilen beitreten und das Teilen je Kurs jederzeit ein- und ausschalten. Nur bei eingeschaltetem Teilen werden Kennzahlen übertragen (Anzahl Projekte, geplante/verfügbare Stunden, erledigt, mit mehr Zeit, Verschiebungen, Anteil privat, Vergleiche). Projektnamen, Beschreibungen und Priorisierungen sieht die Kursleitung nicht; das erzwingt die Datenbank per Row Level Security.
 - **Installierbar (PWA):** Manifest, Symbole und Service Worker; startet vom Startbildschirm und offline.
 - Einrichtung der Datenbank und der E-Mail-Vorlagen: [`supabase/SETUP.md`](supabase/SETUP.md), Schema: [`supabase/schema.sql`](supabase/schema.sql).
 
