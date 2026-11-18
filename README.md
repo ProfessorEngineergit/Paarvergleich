@@ -25,6 +25,14 @@ Aktuelle Wochenplanung für berufliche und private Projekte (alles, was länger 
 
 Projekte, die nach abgeschlossenen Vergleichen verschoben, gestrichen oder erledigt werden, bleiben in der Berechnung, damit die übrigen Positionen stabil bleiben. Die Daten der Wochenplanung liegen unter eigenem Schlüssel im Browser und sind im JSON-Export enthalten.
 
+## Konto, Synchronisierung und Kurse (prio.coach)
+- **Ohne Konto** funktioniert alles wie bisher, nur auf dem eigenen Gerät.
+- **Anmeldung ohne Passwort:** E-Mail eingeben, Code aus der Mail eintippen. Das Konto wird dabei angelegt, die E-Mail ist damit bestätigt.
+- **Synchronisierung:** Die App speichert sofort lokal und überträgt im Hintergrund ins Konto (Supabase, Region Frankfurt). Gewinnt der zuletzt bearbeitete Stand. Liegen bei der ersten Anmeldung auf einem Gerät abweichende Daten vor, fragt die App, welche gelten.
+- **Kurse:** Coaches legen unter „Konto“ einen Kurs an und geben den Code (`PRIO-XXXX`) weiter. Wer mit Freigabe beitritt, überträgt zusätzlich Kennzahlen (Anzahl Projekte, geplante/verfügbare Stunden, erledigt, mit mehr Zeit, Verschiebungen, Anteil privat, Vergleiche). Projektnamen, Beschreibungen und Priorisierungen sieht die Kursleitung nicht; das erzwingt die Datenbank per Row Level Security.
+- **Installierbar (PWA):** Manifest, Symbole und Service Worker; startet vom Startbildschirm und offline.
+- Einrichtung der Datenbank und der E-Mail-Vorlagen: [`supabase/SETUP.md`](supabase/SETUP.md), Schema: [`supabase/schema.sql`](supabase/schema.sql).
+
 ## Weniger Fragen durch Ableitung
 - **Einzelperson**: Binäres Einfügen und Transitivität (a > b und b > c ⇒ a > c). Bei 20 Items reichen meist ~60 statt 190 Fragen.
 - **Gruppe (exakt)**: Unter der Annahme, dass jede Person in sich widerspruchsfrei urteilt, gilt: Mindestens `#(a>b) + #(b>c) − N` Personen stellen a vor c. Diese Schranken werden über alle Paare fortgeschrieben. Liegen Unter- und Obergrenze gleich, ist das Paar errechnet. Das klappt besonders bei großer Einigkeit. Die Fragen sind so angeordnet, dass möglichst viele Paare ableitbar werden.
@@ -35,6 +43,10 @@ Antworten lassen sich zurücknehmen. Der Stand wird lokal im Browser gespeichert
 ## Dateien
 - `index.html`, `style.css`, `app.js`: Oberfläche und PDF-Export (jsPDF)
 - `week.js`: Wochenplanung
+- `sync.js`: Konto, Synchronisierung, Kurse und Coach-Auswertung (Supabase)
+- `sw.js`, `manifest.webmanifest`, `icons/`: installierbare App und Offline-Modus
+- `impressum.html`, `datenschutz.html`: Rechtstexte
+- `supabase/`: Datenbankschema und Einrichtung
 - `engine.js`: Rechenkern (Ableitung, Fragestrategie, Rangliste, Abstandsskala)
 
 Branding: Look an [tillnovotny.de](https://tillnovotny.de) angelehnt (Schrift Korpus Grotesk, helles Grau, schwarze Pillen-Buttons, Blau `#5a80ef` als Akzent). Darüber ein Glas-Design: halbtransparente Karten mit Hintergrund-Unschärfe und feiner, leicht transparenter grauer Glaskante mit Lichtkante oben, ein weicher pinker Lichtpunkt (`#e94673`), der je Schritt fließend an eine andere Stelle wandert, sowie kleine Animationen (Pfeile, Einblenden, Matrix). Bei „Bewegung reduzieren“ im System entfallen die Animationen, Links im Seitenkopf, Footer und PDF. Die Schrift wird direkt von tillnovotny.de geladen. Browser erlauben das nur, wenn die Seite auf tillnovotny.de liegt oder der Server `Access-Control-Allow-Origin` sendet; sonst greift die Ersatzschrift (Helvetica/Arial). Schriftdateien sind bewusst nicht im Repo, da die Lizenz nicht geklärt ist.
